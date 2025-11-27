@@ -1,0 +1,63 @@
+{
+    "id": "soen422-midterm-2025",
+    "title": "SOEN 422 Midterm Practice",
+    "duration_minutes": 15,
+    "show_results_immediate": true,
+    "questions": [
+        {
+            "id": 1,
+            "text": "What does GPIO stand for?",
+            "options": [
+                "General Purpose Input/Output",
+                "Global Parallel Input/Output",
+                "General Peripheral I/O",
+                "Ground Power Input/Output"
+            ],
+            "correct_option": 0
+        },
+        {
+            "id": 2,
+            "text": "Which protocol uses SDA and SCL lines?",
+            "options": [
+                "SPI",
+                "UART",
+                "I2C",
+                "CAN"
+            ],
+            "correct_option": 2
+        },
+        {
+            "id": 3,
+            "text": "What is the typical voltage level for ESP32 GPIO pins?",
+            "options": [
+                "5V",
+                "3.3V",
+                "1.8V",
+                "12V"
+            ],
+            "correct_option": 1
+        },
+        {
+            "id": 4,
+            "text": "Which sensor detects motion using infrared?",
+            "options": [
+                "Ultrasonic sensor",
+                "LDR sensor",
+                "PIR sensor",
+                "Hall effect sensor"
+            ],
+            "correct_option": 2
+        },
+        {
+            "id": 5,
+            "text": "What does PWM stand for?",
+            "options": [
+                "Power Width Modulation",
+                "Pulse Width Modulation",
+                "Periodic Wave Modulation",
+                "Pulse Wave Management"
+            ],
+            "correct_option": 1
+        }
+    ]
+}
