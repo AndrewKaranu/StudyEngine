@@ -43,6 +43,10 @@ public:
     void showFlashcardBack(const char* front, const char* back);
     void showFlashcardFinished(int total, int easy, int hard, int again);
     void showFlashcardPauseMenu(int selectedIndex);
+    
+    // Quiz Mode
+    void showQuizQuestionText(int qNum, int total, const char* question, const char* currentInput, bool showCursor);
+    void showQuizReview(int qNum, int total, const char* question, const char* userAnswer, const char* correctAnswer, bool isCorrect);
 
     // Study Timer
     void showStudyTimer(unsigned long elapsedSeconds, bool isPaused, bool phoneDetected, bool userAway);

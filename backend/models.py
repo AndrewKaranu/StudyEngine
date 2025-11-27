@@ -30,3 +30,15 @@ class Deck(BaseModel):
     id: str
     title: str
     cards: List[Flashcard]
+
+class QuizQuestion(BaseModel):
+    id: int
+    type: str # "mcq" or "short_answer"
+    text: str
+    options: Optional[List[str]] = None
+    correct_answer: str
+
+class Quiz(BaseModel):
+    id: str
+    title: str
+    questions: List[QuizQuestion]

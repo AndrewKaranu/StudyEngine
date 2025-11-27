@@ -159,3 +159,66 @@ Deck SENetworkManager::fetchDeck(String deckId) {
     http.end();
     return deck;
 }
+
+std::vector<Quiz> SENetworkManager::fetchQuizList() {
+    std::vector<Quiz> quizzes;
+    if (!isConnected()) return quizzes;
+
+    WiFiClient client;
+    HTTPClient http;
+    http.begin(client, String(API_BASE_URL) + "/quizzes");
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+        String payload = http.getString();
+        DynamicJsonDocument doc(4096);
+        deserializeJson(doc, payload);
+        JsonArray arr = doc.as<JsonArray>();
+        for (JsonObject obj : arr) {
+            Quiz q;
+            q.id = obj["id"].as<String>();
+            q.title = obj["title"].as<String>();
+            quizzes.push_back(q);
+        }
+    }
+    http.end();
+    return quizzes;
+}
+
+Quiz SENetworkManager::fetchQuiz(String quizId) {
+    Quiz quiz;
+    if (!isConnected()) return quiz;
+
+    WiFiClient client;
+    HTTPClient http;
+    http.begin(client, String(API_BASE_URL) + "/quizzes/" + quizId);
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+        String payload = http.getString();
+        DynamicJsonDocument doc(16384);
+        deserializeJson(doc, payload);
+        
+        quiz.id = doc["id"].as<String>();
+        quiz.title = doc["title"].as<String>();
+        
+        JsonArray questions = doc["questions"];
+        for (JsonObject qObj : questions) {
+            QuizQuestion q;
+            q.id = qObj["id"];
+            q.type = qObj["type"].as<String>();
+            q.text = qObj["text"].as<String>();
+            q.correctAnswer = qObj["correct_answer"].as<String>();
+            
+            if (qObj.containsKey("options")) {
+                JsonArray opts = qObj["options"];
+                for (JsonVariant opt : opts) {
+                    q.options.push_back(opt.as<String>());
+                }
+            }
+            quiz.questions.push_back(q);
+        }
+    }
+    http.end();
+    return quiz;
+}

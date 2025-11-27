@@ -5,6 +5,7 @@
 #include "ExamEngine.h"
 #include "StudyManager.h"
 #include "FlashcardEngine.h"
+#include "QuizEngine.h"
 #include "UIManager.h"
 
 // ===================================================================================
@@ -16,6 +17,7 @@ SENetworkManager networkMgr;
 ExamEngine examEngine;
 StudyManager studyMgr;
 FlashcardEngine flashcardEngine;
+QuizEngine quizEngine;
 
 enum SystemState {
     STATE_MENU,
@@ -23,6 +25,7 @@ enum SystemState {
     STATE_SCANATRON_RUN,
     STATE_STUDY_TIMER,
     STATE_FLASHCARDS,
+    STATE_QUIZ,
     STATE_RESULTS
 };
 
@@ -30,10 +33,11 @@ SystemState currentState = STATE_MENU;
 SystemState lastState = STATE_RESULTS; // Force redraw
 
 // Menu
-const int MENU_ITEMS = 3;
-const char* menuLabels[] = {"Scanatron Mode", "Study Timer", "Flashcards"};
+const int MENU_ITEMS = 4;
+const char* menuLabels[] = {"Scanatron Mode", "Study Timer", "Flashcards", "Quiz Mode"};
 int menuIndex = 0;
 int lastMenuIndex = -1;
+
 
 void setup() {
     Serial.begin(115200);
@@ -95,7 +99,7 @@ void loop() {
     inputMgr.update();
     
     // Global Back Button (BtnB) to return to Menu (except during exam)
-    if (inputMgr.isBtnBPressed() && currentState != STATE_SCANATRON_RUN && currentState != STATE_MENU && currentState != STATE_FLASHCARDS) {
+    if (inputMgr.isBtnBPressed() && currentState != STATE_SCANATRON_RUN && currentState != STATE_MENU && currentState != STATE_FLASHCARDS && currentState != STATE_QUIZ) {
         currentState = STATE_MENU;
         lastMenuIndex = -1;  // Force redraw
     }
@@ -119,6 +123,10 @@ void loop() {
             break;
         case STATE_FLASHCARDS:
             flashcardEngine.handleRun(displayMgr, inputMgr, networkMgr, stateInt);
+            currentState = (SystemState)stateInt;
+            break;
+        case STATE_QUIZ:
+            quizEngine.handleRun(displayMgr, inputMgr, networkMgr, stateInt);
             currentState = (SystemState)stateInt;
             break;
         default:
@@ -151,6 +159,9 @@ void handleMenu() {
         } else if (menuIndex == 2) {
             currentState = STATE_FLASHCARDS;
             flashcardEngine.reset();
+        } else if (menuIndex == 3) {
+            currentState = STATE_QUIZ;
+            quizEngine.reset();
         }
         lastMenuIndex = -1;  // Force redraw when returning
         delay(200);

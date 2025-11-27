@@ -235,8 +235,10 @@ void UIManager::showMainMenu(int selectedIndex, int itemCount, const char** item
             lv_label_set_text(icon, LV_SYMBOL_EDIT);  // Scanatron
         } else if (i == 1) {
             lv_label_set_text(icon, LV_SYMBOL_CHARGE);  // Study Timer
-        } else {
+        } else if (i == 2) {
             lv_label_set_text(icon, LV_SYMBOL_FILE);  // Flashcards
+        } else {
+            lv_label_set_text(icon, LV_SYMBOL_BULLET);  // Quiz
         }
         lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0);
         lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
@@ -723,7 +725,7 @@ void UIManager::showResult(int score, int total, float percentage) {
     
     // Continue button hint
     lv_obj_t* hint = lv_label_create(scr);
-    lv_label_set_text(hint, "Press A or B to continue");
+    lv_label_set_text(hint, "A: Review   B: Exit");
     lv_obj_add_style(hint, &UITheme::style_text_small, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -15);
     
@@ -1098,6 +1100,119 @@ void UIManager::showFlashcardPauseMenu(int selectedIndex) {
     // Footer
     lv_obj_t* hint = lv_label_create(scr);
     lv_label_set_text(hint, "C/D: Navigate   A: Select");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showQuizQuestionText(int qNum, int total, const char* question, const char* currentInput, bool showCursor) {
+    lv_obj_t* scr = createScreen();
+    
+    // Header
+    lv_obj_t* header = lv_obj_create(scr);
+    lv_obj_set_size(header, SCREEN_WIDTH, 45);
+    lv_obj_set_pos(header, 0, 0);
+    lv_obj_add_style(header, &UITheme::style_header, 0);
+    lv_obj_remove_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+    
+    char progStr[20];
+    sprintf(progStr, "Question %d/%d", qNum, total);
+    lv_obj_t* progLbl = lv_label_create(header);
+    lv_label_set_text(progLbl, progStr);
+    lv_obj_set_style_text_font(progLbl, &lv_font_montserrat_18, 0);
+    lv_obj_align(progLbl, LV_ALIGN_LEFT_MID, 15, 0);
+    
+    // Question Text
+    lv_obj_t* qCard = createCard(scr, 20, 60, SCREEN_WIDTH - 40, 80);
+    lv_obj_t* qLbl = lv_label_create(qCard);
+    lv_label_set_text(qLbl, question);
+    lv_obj_set_style_text_font(qLbl, &lv_font_montserrat_18, 0);
+    lv_label_set_long_mode(qLbl, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(qLbl, SCREEN_WIDTH - 80);
+    lv_obj_align(qLbl, LV_ALIGN_TOP_LEFT, 0, 0);
+    
+    // Input Area
+    lv_obj_t* inputCard = createCard(scr, 20, 150, SCREEN_WIDTH - 40, 60);
+    lv_obj_set_style_bg_color(inputCard, lv_color_hex(0x2A303C), 0);
+    
+    lv_obj_t* inputLbl = lv_label_create(inputCard);
+    String dispText = String(currentInput);
+    if (showCursor) dispText += "_";
+    lv_label_set_text(inputLbl, dispText.c_str());
+    lv_obj_set_style_text_font(inputLbl, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_color(inputLbl, UI_COLOR_TEXT_PRIMARY, 0);
+    lv_obj_align(inputLbl, LV_ALIGN_LEFT_MID, 10, 0);
+    
+    // Hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Type answer & press ENTER");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showQuizReview(int qNum, int total, const char* question, const char* userAnswer, const char* correctAnswer, bool isCorrect) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Review Quiz", false);
+    
+    // Question Number
+    char progStr[20];
+    sprintf(progStr, "Question %d/%d", qNum, total);
+    lv_obj_t* progLbl = lv_label_create(scr);
+    lv_label_set_text(progLbl, progStr);
+    lv_obj_set_style_text_font(progLbl, &lv_font_montserrat_18, 0);
+    lv_obj_align(progLbl, LV_ALIGN_TOP_LEFT, 15, 55);
+    
+    // Result Icon
+    lv_obj_t* icon = lv_label_create(scr);
+    lv_label_set_text(icon, isCorrect ? LV_SYMBOL_OK : LV_SYMBOL_CLOSE);
+    lv_obj_set_style_text_color(icon, isCorrect ? UI_COLOR_SUCCESS : UI_COLOR_ERROR, 0);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+    lv_obj_align(icon, LV_ALIGN_TOP_RIGHT, -15, 55);
+    
+    // Question Text
+    lv_obj_t* qCard = createCard(scr, 15, 85, SCREEN_WIDTH - 30, 70);
+    lv_obj_t* qLbl = lv_label_create(qCard);
+    lv_label_set_text(qLbl, question);
+    lv_obj_set_style_text_font(qLbl, &lv_font_montserrat_16, 0);
+    lv_label_set_long_mode(qLbl, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(qLbl, SCREEN_WIDTH - 60);
+    lv_obj_align(qLbl, LV_ALIGN_TOP_LEFT, 0, 0);
+    
+    // User Answer
+    lv_obj_t* userCard = createCard(scr, 15, 165, SCREEN_WIDTH - 30, 50);
+    lv_obj_set_style_bg_color(userCard, isCorrect ? lv_color_hex(0x1E2820) : lv_color_hex(0x2D1E1E), 0);
+    lv_obj_set_style_border_color(userCard, isCorrect ? UI_COLOR_SUCCESS : UI_COLOR_ERROR, 0);
+    lv_obj_set_style_border_width(userCard, 1, 0);
+    
+    lv_obj_t* userLbl = lv_label_create(userCard);
+    String userStr = "You: " + String(userAnswer);
+    lv_label_set_text(userLbl, userStr.c_str());
+    lv_obj_set_style_text_font(userLbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(userLbl, isCorrect ? UI_COLOR_SUCCESS : UI_COLOR_ERROR, 0);
+    lv_obj_align(userLbl, LV_ALIGN_LEFT_MID, 10, 0);
+    
+    // Correct Answer (if wrong)
+    if (!isCorrect) {
+        lv_obj_t* corrCard = createCard(scr, 15, 225, SCREEN_WIDTH - 30, 50);
+        lv_obj_set_style_bg_color(corrCard, lv_color_hex(0x1E2820), 0);
+        lv_obj_set_style_border_color(corrCard, UI_COLOR_SUCCESS, 0);
+        lv_obj_set_style_border_width(corrCard, 1, 0);
+        
+        lv_obj_t* corrLbl = lv_label_create(corrCard);
+        String corrStr = "Correct: " + String(correctAnswer);
+        lv_label_set_text(corrLbl, corrStr.c_str());
+        lv_obj_set_style_text_font(corrLbl, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_color(corrLbl, UI_COLOR_SUCCESS, 0);
+        lv_obj_align(corrLbl, LV_ALIGN_LEFT_MID, 10, 0);
+    }
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "C/D: Prev/Next   B: Exit Review");
     lv_obj_add_style(hint, &UITheme::style_text_small, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
     

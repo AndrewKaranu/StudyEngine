@@ -1,10 +1,11 @@
 from typing import List, Dict
-from models import Exam, StudentResult, Deck, Flashcard
+from models import Exam, StudentResult, Deck, Flashcard, Quiz, QuizQuestion
 
 # In-memory storage for simplicity
 exams_db: Dict[str, Exam] = {}
 results_db: List[StudentResult] = []
 decks_db: Dict[str, Deck] = {}
+quizzes_db: Dict[str, Quiz] = {}
 
 # Initialize with sample deck
 sample_deck = Deck(
@@ -24,6 +25,32 @@ sample_deck = Deck(
     ]
 )
 decks_db[sample_deck.id] = sample_deck
+
+# Initialize with sample quizzes
+sample_quiz_1 = Quiz(
+    id="embedded-systems-101",
+    title="Embedded Systems 101",
+    questions=[
+        QuizQuestion(id=1, type="mcq", text="Which communication protocol is asynchronous?", options=["SPI", "I2C", "UART", "CAN"], correct_answer="2"),
+        QuizQuestion(id=2, type="short_answer", text="What does GPIO stand for?", correct_answer="General Purpose Input Output"),
+        QuizQuestion(id=3, type="mcq", text="What is the typical operating voltage of an Arduino Uno?", options=["3.3V", "5V", "12V", "1.8V"], correct_answer="1"),
+        QuizQuestion(id=4, type="short_answer", text="Name the pin used for serial data transmission.", correct_answer="TX"),
+        QuizQuestion(id=5, type="short_answer", text="What is the unit of frequency?", correct_answer="Hertz")
+    ]
+)
+quizzes_db[sample_quiz_1.id] = sample_quiz_1
+
+sample_quiz_2 = Quiz(
+    id="cpp-basics",
+    title="C++ Basics",
+    questions=[
+        QuizQuestion(id=1, type="short_answer", text="Which keyword is used to define a class?", correct_answer="class"),
+        QuizQuestion(id=2, type="mcq", text="Which operator is used to access members of a pointer?", options=[".", "->", "::", "&"], correct_answer="1"),
+        QuizQuestion(id=3, type="short_answer", text="What is the entry point function of a C++ program?", correct_answer="main"),
+        QuizQuestion(id=4, type="mcq", text="Which data type stores true/false values?", options=["int", "char", "bool", "void"], correct_answer="2")
+    ]
+)
+quizzes_db[sample_quiz_2.id] = sample_quiz_2
 
 def add_exam(exam: Exam):
     exams_db[exam.id] = exam
@@ -45,4 +72,11 @@ def get_all_decks() -> List[Deck]:
 
 def get_deck(deck_id: str) -> Deck:
     return decks_db.get(deck_id)
+
+def get_all_quizzes() -> List[Quiz]:
+    return list(quizzes_db.values())
+
+def get_quiz(quiz_id: str) -> Quiz:
+    return quizzes_db.get(quiz_id)
+
 

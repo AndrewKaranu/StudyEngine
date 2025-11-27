@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from typing import List
-from models import Exam, StudentResult, Deck
+from models import Exam, StudentResult, Deck, Quiz
 import database
 
 app = FastAPI(title="StudyEngine API")
@@ -45,6 +45,17 @@ def get_deck(deck_id: str):
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found")
     return deck
+
+@app.get("/quizzes", response_model=List[Quiz])
+def list_quizzes():
+    return database.get_all_quizzes()
+
+@app.get("/quizzes/{quiz_id}", response_model=Quiz)
+def get_quiz(quiz_id: str):
+    quiz = database.get_quiz(quiz_id)
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    return quiz
 
 if __name__ == "__main__":
     import uvicorn
