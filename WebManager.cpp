@@ -16,6 +16,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     .status-badge { font-size: 0.9rem; }
     .generation-result { margin-top: 15px; padding: 15px; background: #f0f0f0; border-radius: 8px; display: none; }
     .result-preview { max-height: 300px; overflow-y: auto; background: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; }
+    .section-divider { border-top: 2px solid #dee2e6; margin: 25px 0; }
   </style>
 </head>
 <body>
@@ -57,11 +58,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     <!-- AI Generation Section -->
     <div class="card">
-      <div class="card-header bg-purple text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <span>🤖 Generate from Notes (AI)</span>
+      <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        Generate from Notes (AI)
       </div>
       <div class="card-body">
-        <p class="text-muted">Upload your PDF notes and let AI generate quizzes or flashcards automatically.</p>
+        <p class="text-muted">Upload your PDF notes and let AI generate study materials automatically.</p>
         
         <ul class="nav nav-tabs mb-3" role="tablist">
           <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#gen-quiz">Generate Quiz</button></li>
@@ -178,16 +179,96 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
+    <!-- Create Exam Section (for Teachers) -->
+    <div class="card">
+      <div class="card-header bg-warning text-dark">
+        <strong>Create Exam (For Teachers)</strong>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Generate exams from PDF documents for classroom use. Student answers will be collected for manual grading - no auto-scoring on the device.</p>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <label class="form-label">Exam PDF</label>
+            <input type="file" id="genExamPdf" class="form-control mb-2" accept=".pdf">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Exam Title</label>
+            <input type="text" id="genExamTitle" class="form-control mb-2" placeholder="e.g., Midterm Exam - Fall 2025">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-3">
+            <label class="form-label">AI Model</label>
+            <select id="genExamModel" class="form-select mb-2">
+              <option value="sonnet" selected>Sonnet (Higher Quality)</option>
+              <option value="haiku">Haiku (Fast & Cheap)</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label"># Questions</label>
+            <input type="number" id="genExamQuestions" class="form-control mb-2" value="10" min="1" max="50">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Duration (min)</label>
+            <input type="number" id="genExamDuration" class="form-control mb-2" value="60" min="5" max="180">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">&nbsp;</label>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" id="genExamManual" checked disabled>
+              <label class="form-check-label text-muted" for="genExamManual">Manual Grading</label>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Custom Instructions (Optional)</label>
+          <textarea id="genExamInstructions" class="form-control" rows="2" placeholder="e.g., Focus on chapters 5-8, include calculations..."></textarea>
+        </div>
+        <button onclick="generateExam()" id="genExamBtn" class="btn btn-warning">
+          <span class="spinner-border spinner-border-sm d-none" id="genExamSpinner"></span>
+          Generate Exam
+        </button>
+        
+        <div class="progress-container" id="examProgressContainer">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span>Status:</span>
+            <span id="examStatus" class="badge bg-info status-badge">Processing...</span>
+          </div>
+          <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" id="examProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+        
+        <div class="generation-result" id="examResult">
+          <h6>Generated Exam:</h6>
+          <div class="result-preview" id="examResultPreview"></div>
+          <button onclick="saveGenerated('exam')" class="btn btn-success mt-2">Save Exam to StudyEngine</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Results Section -->
     <div class="card">
       <div class="card-header bg-info text-white">Student Results</div>
       <div class="card-body">
-        <button onclick="loadResults()" class="btn btn-sm btn-outline-primary mb-3">Refresh Results</button>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <button onclick="loadResults()" class="btn btn-sm btn-outline-primary">Refresh Results</button>
+          <div>
+            <select id="examFilter" class="form-select form-select-sm d-inline-block" style="width: auto;" onchange="filterResults()">
+              <option value="">All Exams</option>
+            </select>
+            <button onclick="downloadAnswers()" class="btn btn-sm btn-outline-success ms-2">Download Answers</button>
+          </div>
+        </div>
         <div class="table-responsive">
           <table class="table table-hover">
-            <thead><tr><th>Student ID</th><th>Exam ID</th><th>Score</th></tr></thead>
+            <thead><tr><th>Student ID</th><th>Student Name</th><th>Exam ID</th><th>Score</th><th>Actions</th></tr></thead>
             <tbody id="resultsBody"></tbody>
           </table>
+        </div>
+        <div id="noResults" class="text-center text-muted py-4" style="display: none;">
+          No results found. Students haven't submitted any exams yet.
         </div>
       </div>
     </div>
@@ -198,8 +279,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     const API_URL = "%API_URL%"; 
     let currentQuizJobId = null;
     let currentFlashJobId = null;
+    let currentExamJobId = null;
     let quizPollInterval = null;
     let flashPollInterval = null;
+    let examPollInterval = null;
+    let allResults = [];
 
     async function upload(type) {
       const fileInput = document.getElementById(type + 'File');
@@ -389,8 +473,97 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       document.getElementById('genFlashSpinner').classList.add('d-none');
     }
 
+    // Exam Generation
+    async function generateExam() {
+      const pdfFile = document.getElementById('genExamPdf').files[0];
+      const title = document.getElementById('genExamTitle').value;
+      if(!pdfFile) return alert("Please select a PDF file!");
+      if(!title) return alert("Please enter an exam title!");
+
+      const formData = new FormData();
+      formData.append("file", pdfFile);
+      formData.append("title", title);
+      formData.append("model", document.getElementById('genExamModel').value);
+      formData.append("num_questions", document.getElementById('genExamQuestions').value);
+      formData.append("duration_minutes", document.getElementById('genExamDuration').value);
+      const instructions = document.getElementById('genExamInstructions').value;
+      if(instructions) formData.append("custom_instructions", instructions);
+
+      try {
+        document.getElementById('genExamBtn').disabled = true;
+        document.getElementById('genExamSpinner').classList.remove('d-none');
+        document.getElementById('examProgressContainer').style.display = 'block';
+        document.getElementById('examResult').style.display = 'none';
+        document.getElementById('examStatus').textContent = 'Starting...';
+        document.getElementById('examStatus').className = 'badge bg-info status-badge';
+        document.getElementById('examProgressBar').style.width = '10%';
+
+        const res = await fetch(`${API_URL}/generate/exam`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        if(!res.ok) {
+          throw new Error(data.detail || 'Generation failed');
+        }
+
+        currentExamJobId = data.job_id;
+        document.getElementById('examStatus').textContent = 'Processing PDF...';
+        document.getElementById('examProgressBar').style.width = '30%';
+        
+        // Start polling for status
+        examPollInterval = setInterval(() => pollExamStatus(), 2000);
+        
+      } catch (e) {
+        alert("Generation failed: " + e.message);
+        resetExamUI();
+      }
+    }
+
+    async function pollExamStatus() {
+      if(!currentExamJobId) return;
+      
+      try {
+        const res = await fetch(`${API_URL}/generate/status/${currentExamJobId}`);
+        const data = await res.json();
+        
+        if(data.status === 'processing') {
+          document.getElementById('examStatus').textContent = 'AI is generating exam...';
+          document.getElementById('examProgressBar').style.width = '60%';
+        } else if(data.status === 'completed') {
+          clearInterval(examPollInterval);
+          document.getElementById('examStatus').textContent = 'Completed!';
+          document.getElementById('examStatus').className = 'badge bg-success status-badge';
+          document.getElementById('examProgressBar').style.width = '100%';
+          
+          // Show result
+          document.getElementById('examResult').style.display = 'block';
+          document.getElementById('examResultPreview').textContent = JSON.stringify(data.result, null, 2);
+          
+          resetExamUI();
+        } else if(data.status === 'failed') {
+          clearInterval(examPollInterval);
+          document.getElementById('examStatus').textContent = 'Failed: ' + (data.error || 'Unknown error');
+          document.getElementById('examStatus').className = 'badge bg-danger status-badge';
+          resetExamUI();
+        }
+      } catch(e) {
+        console.error('Poll error:', e);
+      }
+    }
+
+    function resetExamUI() {
+      document.getElementById('genExamBtn').disabled = false;
+      document.getElementById('genExamSpinner').classList.add('d-none');
+    }
+
     async function saveGenerated(type) {
-      const jobId = type === 'quiz' ? currentQuizJobId : currentFlashJobId;
+      let jobId;
+      if(type === 'quiz') jobId = currentQuizJobId;
+      else if(type === 'flashcards') jobId = currentFlashJobId;
+      else if(type === 'exam') jobId = currentExamJobId;
+      
       if(!jobId) return alert("No generation to save!");
 
       try {
@@ -410,13 +583,113 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       try {
         const res = await fetch(`${API_URL}/results`);
         const data = await res.json();
-        const tbody = document.getElementById('resultsBody');
-        tbody.innerHTML = '';
-        data.forEach(row => {
-          tbody.innerHTML += `<tr><td>${row.student_id || 'Unknown'}</td><td>${row.exam_id}</td><td>${row.score}/${row.total_questions}</td></tr>`;
+        allResults = data;
+        
+        // Populate exam filter dropdown
+        const examIds = [...new Set(data.map(r => r.exam_id))];
+        const filterSelect = document.getElementById('examFilter');
+        filterSelect.innerHTML = '<option value="">All Exams</option>';
+        examIds.forEach(id => {
+          filterSelect.innerHTML += `<option value="${id}">${id}</option>`;
         });
+        
+        renderResults(data);
       } catch (e) {
         console.error("Failed to load results", e);
+      }
+    }
+
+    function filterResults() {
+      const filter = document.getElementById('examFilter').value;
+      if(filter) {
+        renderResults(allResults.filter(r => r.exam_id === filter));
+      } else {
+        renderResults(allResults);
+      }
+    }
+
+    function renderResults(data) {
+      const tbody = document.getElementById('resultsBody');
+      const noResults = document.getElementById('noResults');
+      
+      if(data.length === 0) {
+        tbody.innerHTML = '';
+        noResults.style.display = 'block';
+        return;
+      }
+      
+      noResults.style.display = 'none';
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${row.student_id || 'Unknown'}</td>
+            <td>${row.student_name || '-'}</td>
+            <td><span class="badge bg-secondary">${row.exam_id}</span></td>
+            <td>${row.score}/${row.total_questions}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-info" onclick="viewAnswers('${row.exam_id}', '${row.student_id}')">
+                View Answers
+              </button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    async function downloadAnswers() {
+      const examId = document.getElementById('examFilter').value;
+      if(!examId) return alert("Please select an exam to download answers for.");
+      
+      try {
+        const res = await fetch(`${API_URL}/results/${examId}/download`);
+        if(!res.ok) {
+          const err = await res.json();
+          return alert("Error: " + err.detail);
+        }
+        const data = await res.json();
+        
+        // Download as JSON file
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${examId}_student_answers.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+      } catch(e) {
+        alert("Download failed: " + e.message);
+      }
+    }
+
+    async function viewAnswers(examId, studentId) {
+      try {
+        const res = await fetch(`${API_URL}/results/${examId}/download`);
+        if(!res.ok) {
+          const err = await res.json();
+          return alert("Error: " + err.detail);
+        }
+        const data = await res.json();
+        
+        // Find this student's submission
+        const submission = data.submissions.find(s => s.student_id === studentId);
+        if(!submission) return alert("Submission not found.");
+        
+        // Show in modal or alert
+        let answerText = `Student: ${submission.student_name} (${submission.student_id})\n`;
+        answerText += `Score: ${submission.score}/${submission.total_questions}\n\n`;
+        
+        submission.answers.forEach(a => {
+          answerText += `Q${a.question_num}: ${a.question_text}\n`;
+          answerText += `Answer: ${a.selected_answer}\n\n`;
+        });
+        
+        alert(answerText);
+        
+      } catch(e) {
+        alert("Error viewing answers: " + e.message);
       }
     }
 

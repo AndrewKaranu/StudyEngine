@@ -7,7 +7,7 @@ class Question(BaseModel):
     id: int
     text: str
     options: List[str]  # ["A) ...", "B) ...", "C) ...", "D) ..."]
-    correct_option: int # 0 for A, 1 for B, etc.
+    correct_option: int # 0 for A, 1 for B, etc. (-1 for manual grading)
 
 class Exam(BaseModel):
     id: str
@@ -15,6 +15,7 @@ class Exam(BaseModel):
     duration_minutes: int
     show_results_immediate: bool
     questions: List[Question]
+    manual_grading: bool = False  # If True, answers are not auto-graded
 
 class StudentResult(BaseModel):
     exam_id: str
@@ -56,6 +57,7 @@ class ModelChoice(str, Enum):
 class GenerationType(str, Enum):
     QUIZ = "quiz"
     FLASHCARDS = "flashcards"
+    EXAM = "exam"
 
 class JobStatus(str, Enum):
     PENDING = "pending"
@@ -76,8 +78,16 @@ class GenerationRequest(BaseModel):
     # Flashcard-specific options
     flashcard_count: int = 10
     
+    # Exam-specific options (manual grading exams)
+    exam_duration_minutes: int = 60
+    exam_question_count: int = 10
+    
     # Custom instructions for the AI
     custom_instructions: Optional[str] = None
+    
+    # Transcript-based generation (alternative to PDF)
+    transcript_content: Optional[str] = None
+    transcript_id: Optional[str] = None
 
 class GenerationJob(BaseModel):
     """Tracks the status of an async generation job"""

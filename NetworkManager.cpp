@@ -28,7 +28,7 @@ std::vector<ExamMetadata> SENetworkManager::fetchExamList() {
     }
 
     HTTPClient http;
-    String url = String(API_BASE_URL) + "/exams";
+    String url = settingsMgr.getApiBaseUrl() + "/exams";
     Serial.println("[NET] Fetching exam list...");
     
     WiFiClient client;
@@ -69,23 +69,37 @@ std::vector<ExamMetadata> SENetworkManager::fetchExamList() {
 }
 
 String SENetworkManager::fetchExamJson(String examId) {
-    if (!isConnected()) return "";
+    if (!isConnected()) {
+        Serial.println("[NET] Not connected - cannot fetch exam");
+        return "";
+    }
 
-    Serial.println("[NET] Downloading exam...");
+    String url = settingsMgr.getApiBaseUrl() + "/exams/" + examId;
+    Serial.printf("[NET] Downloading exam from: %s\n", url.c_str());
     
     WiFiClient client;
     HTTPClient http;
-    http.begin(client, String(API_BASE_URL) + "/exams/" + examId);
-    http.setTimeout(10000);
     
+    if (!http.begin(client, url)) {
+        Serial.println("[NET] HTTP begin failed");
+        return "";
+    }
+    
+    http.setTimeout(15000);  // 15 second timeout
+    http.setConnectTimeout(10000);  // 10 second connect timeout
+    
+    Serial.println("[NET] Sending GET request...");
     int httpCode = http.GET();
+    Serial.printf("[NET] Response code: %d\n", httpCode);
     
     String payload = "";
     if (httpCode == 200) {
         payload = http.getString();
-        Serial.println("[NET] Exam downloaded");
+        Serial.printf("[NET] Exam downloaded, size: %d bytes\n", payload.length());
+    } else if (httpCode < 0) {
+        Serial.printf("[NET] Connection error: %s\n", http.errorToString(httpCode).c_str());
     } else {
-        Serial.printf("[NET] Download failed: %d\n", httpCode);
+        Serial.printf("[NET] HTTP error: %d\n", httpCode);
     }
     http.end();
     return payload;
@@ -96,7 +110,7 @@ bool SENetworkManager::uploadResult(String jsonPayload) {
 
     WiFiClient client;
     HTTPClient http;
-    http.begin(client, String(API_BASE_URL) + "/results");
+    http.begin(client, settingsMgr.getApiBaseUrl() + "/results");
     http.addHeader("Content-Type", "application/json");
     
     int httpCode = http.POST(jsonPayload);
@@ -111,7 +125,7 @@ std::vector<Deck> SENetworkManager::fetchDeckList() {
 
     WiFiClient client;
     HTTPClient http;
-    http.begin(client, String(API_BASE_URL) + "/decks");
+    http.begin(client, settingsMgr.getApiBaseUrl() + "/decks");
     int httpCode = http.GET();
 
     if (httpCode == 200) {
@@ -136,7 +150,7 @@ Deck SENetworkManager::fetchDeck(String deckId) {
 
     WiFiClient client;
     HTTPClient http;
-    http.begin(client, String(API_BASE_URL) + "/decks/" + deckId);
+    http.begin(client, settingsMgr.getApiBaseUrl() + "/decks/" + deckId);
     int httpCode = http.GET();
 
     if (httpCode == 200) {
@@ -166,7 +180,7 @@ std::vector<Quiz> SENetworkManager::fetchQuizList() {
 
     WiFiClient client;
     HTTPClient http;
-    http.begin(client, String(API_BASE_URL) + "/quizzes");
+    http.begin(client, settingsMgr.getApiBaseUrl() + "/quizzes");
     int httpCode = http.GET();
 
     if (httpCode == 200) {
@@ -191,7 +205,7 @@ Quiz SENetworkManager::fetchQuiz(String quizId) {
 
     WiFiClient client;
     HTTPClient http;
-    http.begin(client, String(API_BASE_URL) + "/quizzes/" + quizId);
+    http.begin(client, settingsMgr.getApiBaseUrl() + "/quizzes/" + quizId);
     int httpCode = http.GET();
 
     if (httpCode == 200) {

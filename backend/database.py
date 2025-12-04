@@ -52,6 +52,23 @@ sample_quiz_2 = Quiz(
 )
 quizzes_db[sample_quiz_2.id] = sample_quiz_2
 
+# Initialize with sample exam
+from models import Question as ExamQuestion
+sample_exam = Exam(
+    id="sample-midterm",
+    title="Sample Midterm Exam",
+    duration_minutes=30,
+    show_results_immediate=True,
+    questions=[
+        ExamQuestion(id=1, text="What is the capital of France?", options=["London", "Paris", "Berlin", "Madrid"], correct_option=1),
+        ExamQuestion(id=2, text="Which planet is closest to the Sun?", options=["Venus", "Mercury", "Mars", "Earth"], correct_option=1),
+        ExamQuestion(id=3, text="What is 2 + 2?", options=["3", "4", "5", "6"], correct_option=1),
+        ExamQuestion(id=4, text="Which gas do plants absorb?", options=["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], correct_option=2),
+        ExamQuestion(id=5, text="Who wrote 'Romeo and Juliet'?", options=["Dickens", "Shakespeare", "Austen", "Hemingway"], correct_option=1)
+    ]
+)
+exams_db[sample_exam.id] = sample_exam
+
 def add_exam(exam: Exam):
     exams_db[exam.id] = exam
 

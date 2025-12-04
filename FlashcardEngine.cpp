@@ -1,5 +1,15 @@
 #include "FlashcardEngine.h"
 
+// External feedback functions from main sketch
+extern void beepClick();
+extern void beepSuccess();
+extern void beepError();
+extern void beepWarning();
+extern void beepComplete();
+extern void setLed(bool red, bool green);
+extern void ledOff();
+extern void flashLed(bool red, bool green, int count, int onTime, int offTime);
+
 void FlashcardEngine::reset() {
     state = FC_INIT;
     selectedDeckIndex = 0;
@@ -105,30 +115,22 @@ void FlashcardEngine::handleRun(DisplayManager& display, InputManager& input, SE
                     needsFullRedraw = false;
                 }
                 
+                // Check keyboard for ESC (pause menu) or navigation
+                char key = input.readCardKB();
+                if (key == 27) {  // ESC key
+                    state = FC_PAUSED;
+                    pauseMenuIndex = 0;
+                    lastPauseMenuIndex = -1;
+                    needsFullRedraw = true;
+                    return;
+                }
+                
                 // Press A to flip
                 if (input.isBtnAPressed()) {
+                    beepClick();
                     state = FC_SHOW_BACK;
                     needsFullRedraw = true;
                     delay(200);
-                }
-                
-                // Long press detection for D button (pause menu)
-                bool btnDPressed = input.isBtnDPressed();
-                if (btnDPressed && !btnDWasPressed) {
-                    btnDPressStart = millis();
-                    btnDWasPressed = true;
-                } else if (btnDPressed && btnDWasPressed) {
-                    if (millis() - btnDPressStart >= LONG_PRESS_MS) {
-                        state = FC_PAUSED;
-                        pauseMenuIndex = 0;
-                        lastPauseMenuIndex = -1;
-                        needsFullRedraw = true;
-                        btnDWasPressed = false;
-                        delay(200);
-                        return;
-                    }
-                } else if (!btnDPressed && btnDWasPressed) {
-                    btnDWasPressed = false;
                 }
             }
             break;
@@ -144,45 +146,39 @@ void FlashcardEngine::handleRun(DisplayManager& display, InputManager& input, SE
                     needsFullRedraw = false;
                 }
                 
-                // Long press detection for D button (pause menu)
-                bool btnDPressed = input.isBtnDPressed();
-                if (btnDPressed && !btnDWasPressed) {
-                    btnDPressStart = millis();
-                    btnDWasPressed = true;
-                } else if (btnDPressed && btnDWasPressed) {
-                    if (millis() - btnDPressStart >= LONG_PRESS_MS) {
-                        state = FC_PAUSED;
-                        pauseMenuIndex = 0;
-                        lastPauseMenuIndex = -1;
-                        needsFullRedraw = true;
-                        btnDWasPressed = false;
-                        delay(200);
-                        return;
-                    }
-                } else if (!btnDPressed && btnDWasPressed) {
-                    // Short press D - Easy (4)
-                    if (millis() - btnDPressStart < LONG_PRESS_MS) {
-                        currentDeck.cards[currentCardIndex].rating = 4;
-                        currentCardIndex++;
-                        if (currentCardIndex >= (int)currentDeck.cards.size()) {
-                            state = FC_FINISHED;
-                        } else {
-                            state = FC_SHOW_FRONT;
-                        }
-                        needsFullRedraw = true;
-                        delay(200);
-                    }
-                    btnDWasPressed = false;
+                // Check keyboard for ESC (pause menu)
+                char key = input.readCardKB();
+                if (key == 27) {  // ESC key
+                    state = FC_PAUSED;
+                    pauseMenuIndex = 0;
+                    lastPauseMenuIndex = -1;
+                    needsFullRedraw = true;
+                    return;
                 }
                 
-                // Rating buttons: A, B, C (D is handled above)
+                // Rating buttons: A=Hard(1), B=Medium(2), C=Good(3), D=Easy(4)
                 int rating = 0;
                 if (input.isBtnAPressed()) rating = 1;
                 else if (input.isBtnBPressed()) rating = 2;
                 else if (input.isBtnCPressed()) rating = 3;
+                else if (input.isBtnDPressed()) rating = 4;
                 
                 if (rating > 0) {
                     currentDeck.cards[currentCardIndex].rating = rating;
+                    
+                    // Feedback based on rating
+                    if (rating >= 3) {
+                        // Good/Easy - green flash
+                        flashLed(false, true, 1, 80, 0);
+                        beepSuccess();
+                    } else if (rating == 2) {
+                        // Medium - quick beep
+                        beepClick();
+                    } else {
+                        // Hard - red flash
+                        flashLed(true, false, 1, 80, 0);
+                        beepClick();
+                    }
                     
                     currentCardIndex++;
                     if (currentCardIndex >= (int)currentDeck.cards.size()) {
@@ -191,7 +187,7 @@ void FlashcardEngine::handleRun(DisplayManager& display, InputManager& input, SE
                         state = FC_SHOW_FRONT;
                     }
                     needsFullRedraw = true;
-                    delay(200);
+                    delay(150);
                 }
             }
             break;
@@ -238,6 +234,7 @@ void FlashcardEngine::handleRun(DisplayManager& display, InputManager& input, SE
 
         case FC_FINISHED:
             {
+                static bool finishedFeedbackDone = false;
                 if (needsFullRedraw) {
                     // Calculate stats
                     int easy = 0, hard = 0, again = 0, good = 0;
@@ -248,12 +245,20 @@ void FlashcardEngine::handleRun(DisplayManager& display, InputManager& input, SE
                         else again++;
                     }
                     
+                    // Play completion feedback
+                    if (!finishedFeedbackDone) {
+                        beepComplete();
+                        flashLed(false, true, 3, 150, 100); // Green flash 3 times
+                        finishedFeedbackDone = true;
+                    }
+                    
                     uiMgr.showFlashcardFinished(currentDeck.cards.size(), easy, hard, again);
                     display.showStatus("Deck Complete!");
                     needsFullRedraw = false;
                 }
                 
                 if (input.isBtnAPressed() || input.isBtnBPressed()) {
+                    finishedFeedbackDone = false; // Reset for next time
                     state = FC_SELECT_DECK;
                     needsFullRedraw = true;
                     delay(200);

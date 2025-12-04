@@ -4,6 +4,13 @@
  */
 
 #include "StudyManager.h"
+#include "SettingsManager.h"
+#include <Wire.h>
+
+// External LED functions from main sketch
+extern void setLed(bool red, bool green);
+extern void ledOff();
+extern void flashLed(bool red, bool green, int count, int onTime, int offTime);
 
 // Musical notes (frequencies in Hz)
 #define NOTE_C4  262
@@ -43,6 +50,20 @@ void StudyManager::reset() {
 
 void StudyManager::update(DisplayManager& display, InputManager& input) {
     static unsigned long lastUpdate = 0;
+    
+    // Read all buttons FIRST via direct I2C before anything else
+    uint16_t pcfRaw = 0xFFFF;
+    Wire.requestFrom(0x20, 2);
+    if (Wire.available() == 2) {
+        pcfRaw = Wire.read();
+        pcfRaw |= (Wire.read() << 8);
+    }
+    
+    // Store button states (active low)
+    cachedBtnA = !((pcfRaw >> 0) & 1);
+    cachedBtnB = !((pcfRaw >> 1) & 1);
+    cachedBtnC = !((pcfRaw >> 2) & 1);
+    cachedBtnD = !((pcfRaw >> 3) & 1);
     
     switch (timerState) {
         case TIMER_STATE_SETUP:
@@ -226,15 +247,20 @@ void StudyManager::handleRunning(InputManager& input) {
         needsRedraw = false;
     }
     
-    // Handle input
-    if (input.isBtnAPressed()) {
-        pauseTimer();
-        delay(200);
-    }
+    // Handle input using cached button states with debounce
+    static unsigned long lastBtnTime = 0;
+    const unsigned long DEBOUNCE = 250;
     
-    if (input.isBtnBPressed()) {
-        stopTimer();
-        delay(200);
+    if (millis() - lastBtnTime >= DEBOUNCE) {
+        if (cachedBtnA) {
+            pauseTimer();
+            lastBtnTime = millis();
+        }
+        
+        if (cachedBtnB) {
+            stopTimer();
+            lastBtnTime = millis();
+        }
     }
 }
 
@@ -253,16 +279,22 @@ void StudyManager::handlePaused(InputManager& input) {
         needsRedraw = false;
     }
     
-    // Resume with A
-    if (input.isBtnAPressed()) {
-        resumeTimer();
-        delay(200);
-    }
+    // Handle input using cached button states with debounce
+    static unsigned long lastBtnTime = 0;
+    const unsigned long DEBOUNCE = 250;
     
-    // Stop with B
-    if (input.isBtnBPressed()) {
-        stopTimer();
-        delay(200);
+    if (millis() - lastBtnTime >= DEBOUNCE) {
+        // Resume with A
+        if (cachedBtnA) {
+            resumeTimer();
+            lastBtnTime = millis();
+        }
+        
+        // Stop with B
+        if (cachedBtnB) {
+            stopTimer();
+            lastBtnTime = millis();
+        }
     }
 }
 
@@ -298,16 +330,22 @@ void StudyManager::handleBreak(InputManager& input) {
         needsRedraw = false;
     }
     
-    // Skip break with A
-    if (input.isBtnAPressed()) {
-        skipPhase();
-        delay(200);
-    }
+    // Handle input using cached button states with debounce
+    static unsigned long lastBtnTime = 0;
+    const unsigned long DEBOUNCE = 250;
     
-    // Stop with B
-    if (input.isBtnBPressed()) {
-        stopTimer();
-        delay(200);
+    if (millis() - lastBtnTime >= DEBOUNCE) {
+        // Skip break with A
+        if (cachedBtnA) {
+            skipPhase();
+            lastBtnTime = millis();
+        }
+        
+        // Stop with B
+        if (cachedBtnB) {
+            stopTimer();
+            lastBtnTime = millis();
+        }
     }
 }
 
@@ -322,13 +360,19 @@ void StudyManager::handleFinished(InputManager& input) {
         needsRedraw = false;
     }
     
-    // Any button returns to setup
-    if (input.isBtnAPressed() || input.isBtnBPressed()) {
-        timerState = TIMER_STATE_SETUP;
-        setupMenuIndex = 0;
-        lastMenuIndex = -1;
-        needsRedraw = true;
-        delay(200);
+    // Handle input using cached button states with debounce
+    static unsigned long lastBtnTime = 0;
+    const unsigned long DEBOUNCE = 250;
+    
+    if (millis() - lastBtnTime >= DEBOUNCE) {
+        // Any button returns to setup
+        if (cachedBtnA || cachedBtnB) {
+            timerState = TIMER_STATE_SETUP;
+            setupMenuIndex = 0;
+            lastMenuIndex = -1;
+            needsRedraw = true;
+            lastBtnTime = millis();
+        }
     }
 }
 
@@ -406,6 +450,7 @@ unsigned long StudyManager::getRemainingTime() {
 
 // Sound functions
 void StudyManager::playMelody(const int* notes, const int* durations, int count) {
+    if (settingsMgr.getSpeakerMuted()) return;  // Respect mute setting
     ledcAttach(PIN_SPKR, 1000, 8);
     for (int i = 0; i < count; i++) {
         if (notes[i] == NOTE_REST) {
@@ -416,17 +461,22 @@ void StudyManager::playMelody(const int* notes, const int* durations, int count)
         delay(durations[i]);
     }
     ledcWriteTone(PIN_SPKR, 0);
+    ledcDetach(PIN_SPKR);      // Detach PWM from pin
+    pinMode(PIN_SPKR, OUTPUT); // Set as regular output
+    digitalWrite(PIN_SPKR, LOW); // Drive low to prevent noise
 }
 
 void StudyManager::playStartSound() {
-    // Ascending chime
+    // Green flash + ascending chime
+    setLed(false, true); // Green on
     const int notes[] = {NOTE_C5, NOTE_E5, NOTE_G5};
     const int durations[] = {100, 100, 200};
     playMelody(notes, durations, 3);
+    ledOff();
 }
 
 void StudyManager::playPauseSound() {
-    // Two low tones
+    // Two low tones (no LED - it's just a pause)
     const int notes[] = {NOTE_G4, NOTE_REST, NOTE_G4};
     const int durations[] = {100, 50, 100};
     playMelody(notes, durations, 3);
@@ -440,21 +490,25 @@ void StudyManager::playResumeSound() {
 }
 
 void StudyManager::playFinishSound() {
-    // Victory fanfare
+    // Victory fanfare with green flash
+    flashLed(false, true, 3, 100, 80); // Green flash
     const int notes[] = {NOTE_C5, NOTE_E5, NOTE_G5, NOTE_REST, NOTE_G5, NOTE_C5};
     const int durations[] = {150, 150, 150, 100, 100, 300};
     playMelody(notes, durations, 6);
 }
 
 void StudyManager::playBreakStartSound() {
-    // Relaxing descending
+    // Relaxing descending with green LED (break is good!)
+    setLed(false, true);
     const int notes[] = {NOTE_G5, NOTE_E5, NOTE_C5};
     const int durations[] = {150, 150, 250};
     playMelody(notes, durations, 3);
+    ledOff();
 }
 
 void StudyManager::playBreakEndSound() {
-    // Alert ascending
+    // Alert ascending with red flash (back to work!)
+    flashLed(true, false, 2, 100, 80);
     const int notes[] = {NOTE_C5, NOTE_D5, NOTE_E5, NOTE_G5};
     const int durations[] = {100, 100, 100, 200};
     playMelody(notes, durations, 4);

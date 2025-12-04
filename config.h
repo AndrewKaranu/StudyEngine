@@ -54,12 +54,14 @@
 #define PCF_BTN_D    3
 #define PCF_LED_R    6
 #define PCF_LED_G    7
-#define PCF_LED_B    8
+#define PCF_LED_B    10
 
 // --- WIFI CONFIG ---
 #define WIFI_SSID "Andrew’s iPhone"
 #define WIFI_PASS "ReeceJames"
-// Your PC's IP on the iPhone hotspot network
-#define API_BASE_URL "http://172.20.10.11:8000"
+
+// Default API URL (used if nothing is saved in preferences)
+#define DEFAULT_API_URL "http://172.20.10.11:8000"
+#define MAX_URL_LENGTH 128
 
 #endif

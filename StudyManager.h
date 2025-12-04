@@ -96,6 +96,12 @@ private:
     bool editingValue = false;
     int editValue = 0;
     
+    // Cached button states (read at start of update)
+    bool cachedBtnA = false;
+    bool cachedBtnB = false;
+    bool cachedBtnC = false;
+    bool cachedBtnD = false;
+    
     // Internal methods
     void handleSetup(InputManager& input);
     void handleRunning(InputManager& input);

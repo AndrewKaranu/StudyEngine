@@ -36,6 +36,9 @@ public:
     bool isBtnDLongPressed();
     
     // Check if button is currently held (not edge-triggered)
+    bool isBtnAHeld();
+    bool isBtnBHeld();
+    bool isBtnCHeld();
     bool isBtnDHeld();
     
     // CardKB

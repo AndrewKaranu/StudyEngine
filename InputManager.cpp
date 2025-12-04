@@ -99,6 +99,21 @@ bool InputManager::isBtnDPressed() {
     return !((inputs >> PCF_BTN_D) & 1);
 }
 
+bool InputManager::isBtnAHeld() {
+    uint16_t inputs = pcfRead();
+    return !((inputs >> PCF_BTN_A) & 1);
+}
+
+bool InputManager::isBtnBHeld() {
+    uint16_t inputs = pcfRead();
+    return !((inputs >> PCF_BTN_B) & 1);
+}
+
+bool InputManager::isBtnCHeld() {
+    uint16_t inputs = pcfRead();
+    return !((inputs >> PCF_BTN_C) & 1);
+}
+
 bool InputManager::isBtnDHeld() {
     return btnDWasPressed;
 }

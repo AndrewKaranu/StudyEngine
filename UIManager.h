@@ -77,7 +77,29 @@ public:
     void showFocusWarning(const char* message, bool phoneIssue, bool presenceIssue);
     
     // NEW: Global Settings Menu
-    void showSettingsMenu(int selectedIndex, bool focusModeEnabled);
+    void showSettingsMenu(int selectedIndex, bool focusModeEnabled, bool speakerMuted);
+    
+    // NEW: Admin Panel URL display
+    void showAdminURL(const char* url);
+    
+    // NEW: Dev Mode Menu
+    void showDevModeMenu(int selectedIndex, const char* apiUrl, bool serialDebug, bool showFPS, bool verboseNet);
+    
+    // NEW: API URL Editor
+    void showApiUrlEditor(const char* currentUrl, const char* editingUrl, int cursorPos);
+    
+    // NEW: Hardware Test Screen
+    void showHardwareTest(int selectedIndex, bool btnA, bool btnB, bool btnC, bool btnD, 
+                          int potValue, char lastKey, bool wifiConnected);
+    
+    // NEW: Test Result Screen
+    void showTestResult(const char* testName, bool passed, const char* details);
+    
+    // NEW: Transcript Mode
+    void showTranscriptList(const char** titles, const char** dates, int count, int selectedIndex);
+    void showTranscriptOptions(const char* title, int selectedIndex);
+    void showTranscriptContent(const char* title, const char* content);
+    void showSuccess(const char* title, const char* message);
     
     // Update specific elements without full redraw
     void updateAnswerState(int optionIndex, int pendingAnswer, int confirmedAnswer);

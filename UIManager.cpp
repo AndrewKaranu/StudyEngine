@@ -1654,7 +1654,7 @@ void UIManager::showFocusWarning(const char* message, bool phoneIssue, bool pres
 // GLOBAL SETTINGS MENU
 // ===================================================================================
 
-void UIManager::showSettingsMenu(int selectedIndex, bool focusModeEnabled) {
+void UIManager::showSettingsMenu(int selectedIndex, bool focusModeEnabled, bool speakerMuted) {
     lv_obj_t* scr = createScreen();
     
     createHeader(scr, "Settings", true);
@@ -1666,17 +1666,17 @@ void UIManager::showSettingsMenu(int selectedIndex, bool focusModeEnabled) {
     lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(list, 0, 0);
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list, 12, 0);
+    lv_obj_set_style_pad_row(list, 10, 0);
     lv_obj_set_style_pad_all(list, 10, 0);
     
-    // Menu items
-    const char* labels[] = {"Focus Mode", "Back to Menu"};
-    const char* icons[] = {LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LEFT};
-    int itemCount = 2;
+    // Menu items - 5 options
+    const char* labels[] = {"Focus Mode", "Mute Speaker", "Show Admin URL", "Developer Mode", "Back to Menu"};
+    const char* icons[] = {LV_SYMBOL_EYE_OPEN, LV_SYMBOL_MUTE, LV_SYMBOL_WIFI, LV_SYMBOL_SETTINGS, LV_SYMBOL_LEFT};
+    int itemCount = 5;
     
     for (int i = 0; i < itemCount; i++) {
         lv_obj_t* item = lv_obj_create(list);
-        lv_obj_set_size(item, SCREEN_WIDTH - 50, 65);
+        lv_obj_set_size(item, SCREEN_WIDTH - 50, 44);
         
         if (i == selectedIndex) {
             lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
@@ -1688,31 +1688,688 @@ void UIManager::showSettingsMenu(int selectedIndex, bool focusModeEnabled) {
         // Icon
         lv_obj_t* icon = lv_label_create(item);
         lv_label_set_text(icon, icons[i]);
-        lv_obj_set_style_text_font(icon, &lv_font_montserrat_22, 0);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 10, 0);
         
         // Label
         lv_obj_t* label = lv_label_create(item);
         lv_label_set_text(label, labels[i]);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-        lv_obj_align(label, LV_ALIGN_LEFT_MID, 50, 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 45, 0);
         
         // Toggle/Value for Focus Mode
         if (i == 0) {
             lv_obj_t* toggle = lv_label_create(item);
             lv_label_set_text(toggle, focusModeEnabled ? "ON" : "OFF");
-            lv_obj_set_style_text_font(toggle, &lv_font_montserrat_18, 0);
+            lv_obj_set_style_text_font(toggle, &lv_font_montserrat_16, 0);
             lv_obj_set_style_text_color(toggle, focusModeEnabled ? UI_COLOR_SUCCESS : UI_COLOR_TEXT_MUTED, 0);
             lv_obj_align(toggle, LV_ALIGN_RIGHT_MID, -15, 0);
+        }
+        
+        // Toggle for Speaker Mute
+        if (i == 1) {
+            lv_obj_t* toggle = lv_label_create(item);
+            lv_label_set_text(toggle, speakerMuted ? "MUTED" : "ON");
+            lv_obj_set_style_text_font(toggle, &lv_font_montserrat_16, 0);
+            lv_obj_set_style_text_color(toggle, speakerMuted ? UI_COLOR_WARNING : UI_COLOR_SUCCESS, 0);
+            lv_obj_align(toggle, LV_ALIGN_RIGHT_MID, -15, 0);
+        }
+        
+        // Arrow for submenus
+        if (i == 2 || i == 3) {
+            lv_obj_t* arrow = lv_label_create(item);
+            lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+            lv_obj_set_style_text_color(arrow, UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(arrow, LV_ALIGN_RIGHT_MID, -10, 0);
         }
     }
     
     // Footer hint
     lv_obj_t* hint = lv_label_create(scr);
-    lv_label_set_text(hint, "Dial: Navigate   A: Toggle/Select   B: Back");
+    lv_label_set_text(hint, "Dial: Navigate   A: Select   B: Back");
     lv_obj_add_style(hint, &UITheme::style_text_small, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// ADMIN URL DISPLAY
+// ===================================================================================
+
+void UIManager::showAdminURL(const char* url) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Admin Panel", true);
+    
+    // Create a nice card to display the URL
+    lv_obj_t* card = lv_obj_create(scr);
+    lv_obj_set_size(card, SCREEN_WIDTH - 40, 200);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_set_style_bg_color(card, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(card, 15, 0);
+    lv_obj_set_style_border_width(card, 3, 0);
+    lv_obj_set_style_border_color(card, UI_COLOR_PRIMARY, 0);
+    lv_obj_set_style_pad_all(card, 15, 0);
+    lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(card, 10, 0);
+    
+    // WiFi icon
+    lv_obj_t* icon = lv_label_create(card);
+    lv_label_set_text(icon, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(icon, UI_COLOR_PRIMARY, 0);
+    
+    // Title
+    lv_obj_t* titleLabel = lv_label_create(card);
+    lv_label_set_text(titleLabel, "Admin Panel URL");
+    lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_color(titleLabel, UI_COLOR_TEXT_PRIMARY, 0);
+    
+    // URL in prominent box
+    lv_obj_t* urlBox = lv_obj_create(card);
+    lv_obj_set_size(urlBox, SCREEN_WIDTH - 80, 50);
+    lv_obj_set_style_bg_color(urlBox, UI_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_opa(urlBox, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(urlBox, 8, 0);
+    lv_obj_set_style_border_width(urlBox, 0, 0);
+    lv_obj_remove_flag(urlBox, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_t* urlLabel = lv_label_create(urlBox);
+    lv_label_set_text(urlLabel, url);
+    lv_obj_set_style_text_font(urlLabel, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(urlLabel, lv_color_white(), 0);
+    lv_obj_center(urlLabel);
+    
+    // Instructions
+    lv_obj_t* instrLabel = lv_label_create(card);
+    lv_label_set_text(instrLabel, "Open in browser\n(same WiFi network)");
+    lv_obj_set_style_text_font(instrLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(instrLabel, UI_COLOR_TEXT_MUTED, 0);
+    lv_obj_set_style_text_align(instrLabel, LV_TEXT_ALIGN_CENTER, 0);
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "B: Back to Settings");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// DEV MODE MENU
+// ===================================================================================
+
+void UIManager::showDevModeMenu(int selectedIndex, const char* apiUrl, bool serialDebug, bool showFPS, bool verboseNet) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Developer Mode", true);
+    
+    // Settings list
+    lv_obj_t* list = lv_obj_create(scr);
+    lv_obj_set_size(list, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 80);
+    lv_obj_set_pos(list, 10, 55);
+    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list, 8, 0);
+    lv_obj_set_style_pad_all(list, 5, 0);
+    
+    // Menu items (7 items now)
+    const char* labels[] = {"API Base URL", "Serial Debug", "Show FPS", "Verbose Network", "Hardware Tests", "Reset All Settings", "Back"};
+    const char* icons[] = {LV_SYMBOL_UPLOAD, LV_SYMBOL_LIST, LV_SYMBOL_CHARGE, LV_SYMBOL_DOWNLOAD, LV_SYMBOL_SETTINGS, LV_SYMBOL_REFRESH, LV_SYMBOL_LEFT};
+    bool toggles[] = {false, serialDebug, showFPS, verboseNet, false, false, false};
+    int itemCount = 7;
+    
+    for (int i = 0; i < itemCount; i++) {
+        lv_obj_t* item = lv_obj_create(list);
+        lv_obj_set_size(item, SCREEN_WIDTH - 50, 42);
+        
+        if (i == selectedIndex) {
+            lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
+        } else {
+            lv_obj_add_style(item, &UITheme::style_list_item, 0);
+        }
+        lv_obj_remove_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Icon
+        lv_obj_t* icon = lv_label_create(item);
+        lv_label_set_text(icon, icons[i]);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_18, 0);
+        lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 8, 0);
+        
+        // Label
+        lv_obj_t* label = lv_label_create(item);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 38, 0);
+        
+        // Value for API URL (first item)
+        if (i == 0) {
+            lv_obj_t* val = lv_label_create(item);
+            // Truncate URL for display
+            String displayUrl = String(apiUrl);
+            if (displayUrl.length() > 25) {
+                displayUrl = displayUrl.substring(0, 22) + "...";
+            }
+            lv_label_set_text(val, displayUrl.c_str());
+            lv_obj_set_style_text_font(val, &lv_font_montserrat_12, 0);
+            lv_obj_set_style_text_color(val, UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(val, LV_ALIGN_RIGHT_MID, -30, 0);
+            
+            lv_obj_t* arrow = lv_label_create(item);
+            lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+            lv_obj_set_style_text_color(arrow, UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(arrow, LV_ALIGN_RIGHT_MID, -8, 0);
+        }
+        // Toggle for boolean settings (items 1-3)
+        else if (i >= 1 && i <= 3) {
+            lv_obj_t* toggle = lv_label_create(item);
+            lv_label_set_text(toggle, toggles[i] ? "ON" : "OFF");
+            lv_obj_set_style_text_font(toggle, &lv_font_montserrat_16, 0);
+            lv_obj_set_style_text_color(toggle, toggles[i] ? UI_COLOR_SUCCESS : UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(toggle, LV_ALIGN_RIGHT_MID, -12, 0);
+        }
+        // Hardware Tests (item 4) - show arrow
+        else if (i == 4) {
+            lv_obj_t* arrow = lv_label_create(item);
+            lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+            lv_obj_set_style_text_color(arrow, UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(arrow, LV_ALIGN_RIGHT_MID, -8, 0);
+        }
+        // Reset settings (item 5) - warning color
+        else if (i == 5) {
+            lv_obj_set_style_text_color(icon, UI_COLOR_WARNING, 0);
+        }
+    }
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Dial: Navigate   A: Toggle/Edit   B: Back");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// API URL EDITOR
+// ===================================================================================
+
+void UIManager::showApiUrlEditor(const char* currentUrl, const char* editingUrl, int cursorPos) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Edit API URL", true);
+    
+    // Current URL display
+    lv_obj_t* currentCard = createCard(scr, 20, 55, SCREEN_WIDTH - 40, 50);
+    lv_obj_set_style_bg_color(currentCard, UI_COLOR_BG_CARD, 0);
+    
+    lv_obj_t* currLbl = lv_label_create(currentCard);
+    lv_label_set_text(currLbl, "Current:");
+    lv_obj_set_style_text_font(currLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(currLbl, UI_COLOR_TEXT_MUTED, 0);
+    lv_obj_align(currLbl, LV_ALIGN_LEFT_MID, 10, -8);
+    
+    lv_obj_t* currVal = lv_label_create(currentCard);
+    lv_label_set_text(currVal, currentUrl);
+    lv_obj_set_style_text_font(currVal, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(currVal, UI_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_align(currVal, LV_ALIGN_LEFT_MID, 10, 10);
+    
+    // Editing area
+    lv_obj_t* editCard = createCard(scr, 20, 115, SCREEN_WIDTH - 40, 70);
+    lv_obj_set_style_border_color(editCard, UI_COLOR_PRIMARY, 0);
+    lv_obj_set_style_border_width(editCard, 2, 0);
+    
+    lv_obj_t* editLbl = lv_label_create(editCard);
+    lv_label_set_text(editLbl, "New URL:");
+    lv_obj_set_style_text_font(editLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(editLbl, UI_COLOR_PRIMARY, 0);
+    lv_obj_align(editLbl, LV_ALIGN_TOP_LEFT, 10, 5);
+    
+    // URL with cursor
+    String displayText = String(editingUrl);
+    if (cursorPos >= 0) {
+        displayText = displayText.substring(0, cursorPos) + "|" + displayText.substring(cursorPos);
+    }
+    
+    lv_obj_t* urlText = lv_label_create(editCard);
+    lv_label_set_text(urlText, displayText.c_str());
+    lv_obj_set_style_text_font(urlText, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(urlText, UI_COLOR_TEXT_PRIMARY, 0);
+    lv_obj_set_width(urlText, SCREEN_WIDTH - 80);
+    lv_label_set_long_mode(urlText, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_align(urlText, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+    
+    // Instructions card
+    lv_obj_t* instrCard = createCard(scr, 20, 195, SCREEN_WIDTH - 40, 85);
+    lv_obj_set_style_bg_color(instrCard, lv_color_hex(0x1A1F25), 0);
+    
+    lv_obj_t* instr = lv_label_create(instrCard);
+    lv_label_set_text(instr, 
+        "Type URL using keyboard\n"
+        "Enter: Save   ESC/B: Cancel\n"
+        "Backspace: Delete   Del: Reset to default");
+    lv_obj_set_style_text_font(instr, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(instr, UI_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_set_style_text_align(instr, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(instr);
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Left/Right: Move cursor");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// HARDWARE TEST SCREEN
+// ===================================================================================
+
+void UIManager::showHardwareTest(int selectedIndex, bool btnA, bool btnB, bool btnC, bool btnD, 
+                                  int potValue, char lastKey, bool wifiConnected) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Hardware Tests", true);
+    
+    // Create two columns layout
+    lv_obj_t* container = lv_obj_create(scr);
+    lv_obj_set_size(container, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 80);
+    lv_obj_set_pos(container, 10, 55);
+    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(container, 0, 0);
+    lv_obj_set_style_pad_all(container, 0, 0);
+    
+    // Left column - Test menu (scrollable)
+    lv_obj_t* menuCol = lv_obj_create(container);
+    lv_obj_set_size(menuCol, 140, SCREEN_HEIGHT - 95);
+    lv_obj_set_pos(menuCol, 0, 0);
+    lv_obj_set_style_bg_opa(menuCol, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(menuCol, 0, 0);
+    lv_obj_set_flex_flow(menuCol, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(menuCol, 3, 0);
+    lv_obj_set_style_pad_all(menuCol, 2, 0);
+    
+    // Menu items (10 items)
+    const char* labels[] = {"TFT Display", "OLED", "Buttons", "Keyboard", "Potentiometer", "Speaker", "RGB LED", "WiFi", "API", "Back"};
+    const char* icons[] = {LV_SYMBOL_IMAGE, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_REFRESH, LV_SYMBOL_AUDIO, LV_SYMBOL_TINT, LV_SYMBOL_WIFI, LV_SYMBOL_DOWNLOAD, LV_SYMBOL_LEFT};
+    
+    for (int i = 0; i < 10; i++) {
+        lv_obj_t* item = lv_obj_create(menuCol);
+        lv_obj_set_size(item, 130, 24);
+        
+        if (i == selectedIndex) {
+            lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
+        } else {
+            lv_obj_add_style(item, &UITheme::style_list_item, 0);
+        }
+        lv_obj_remove_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Icon
+        lv_obj_t* icon = lv_label_create(item);
+        lv_label_set_text(icon, icons[i]);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 3, 0);
+        
+        // Label
+        lv_obj_t* label = lv_label_create(item);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 20, 0);
+    }
+    
+    // Right column - Live status display
+    lv_obj_t* statusCol = createCard(container, 145, 0, 155, SCREEN_HEIGHT - 95);
+    lv_obj_set_style_bg_color(statusCol, lv_color_hex(0x1A1F25), 0);
+    lv_obj_set_flex_flow(statusCol, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(statusCol, 8, 0);
+    lv_obj_set_style_pad_row(statusCol, 3, 0);
+    
+    // Title
+    lv_obj_t* title = lv_label_create(statusCol);
+    lv_label_set_text(title, "Live Status");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(title, UI_COLOR_PRIMARY, 0);
+    
+    // Buttons status
+    lv_obj_t* btnRow = lv_obj_create(statusCol);
+    lv_obj_set_size(btnRow, 140, 28);
+    lv_obj_set_style_bg_opa(btnRow, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btnRow, 0, 0);
+    lv_obj_set_style_pad_all(btnRow, 0, 0);
+    
+    const char* btnLabels[] = {"A", "B", "C", "D"};
+    bool btnStates[] = {btnA, btnB, btnC, btnD};
+    
+    for (int i = 0; i < 4; i++) {
+        lv_obj_t* btn = lv_obj_create(btnRow);
+        lv_obj_set_size(btn, 30, 22);
+        lv_obj_set_pos(btn, i * 34, 2);
+        lv_obj_set_style_radius(btn, 4, 0);
+        lv_obj_set_style_border_width(btn, 1, 0);
+        lv_obj_set_style_border_color(btn, btnStates[i] ? UI_COLOR_SUCCESS : UI_COLOR_TEXT_MUTED, 0);
+        lv_obj_set_style_bg_color(btn, btnStates[i] ? UI_COLOR_SUCCESS : lv_color_hex(0x2A2F35), 0);
+        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+        
+        lv_obj_t* lbl = lv_label_create(btn);
+        lv_label_set_text(lbl, btnLabels[i]);
+        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(lbl, btnStates[i] ? lv_color_hex(0x000000) : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_center(lbl);
+    }
+    
+    // Potentiometer value
+    lv_obj_t* potLbl = lv_label_create(statusCol);
+    char potStr[32];
+    snprintf(potStr, sizeof(potStr), "Pot: %d", potValue);
+    lv_label_set_text(potLbl, potStr);
+    lv_obj_set_style_text_font(potLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(potLbl, UI_COLOR_TEXT_SECONDARY, 0);
+    
+    // Pot progress bar
+    lv_obj_t* potBar = lv_bar_create(statusCol);
+    lv_obj_set_size(potBar, 130, 10);
+    lv_bar_set_range(potBar, 0, 4095);
+    lv_bar_set_value(potBar, potValue, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(potBar, lv_color_hex(0x2A2F35), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(potBar, UI_COLOR_PRIMARY, LV_PART_INDICATOR);
+    
+    // Keyboard last key
+    lv_obj_t* kbLbl = lv_label_create(statusCol);
+    char kbStr[32];
+    if (lastKey >= 32 && lastKey < 127) {
+        snprintf(kbStr, sizeof(kbStr), "Key: '%c' (%d)", lastKey, (int)lastKey);
+    } else if (lastKey != 0) {
+        snprintf(kbStr, sizeof(kbStr), "Key: 0x%02X (%d)", (uint8_t)lastKey, (int)lastKey);
+    } else {
+        snprintf(kbStr, sizeof(kbStr), "Key: (none)");
+    }
+    lv_label_set_text(kbLbl, kbStr);
+    lv_obj_set_style_text_font(kbLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(kbLbl, UI_COLOR_TEXT_SECONDARY, 0);
+    
+    // WiFi status
+    lv_obj_t* wifiLbl = lv_label_create(statusCol);
+    lv_label_set_text(wifiLbl, wifiConnected ? "WiFi: Connected" : "WiFi: Disconnected");
+    lv_obj_set_style_text_font(wifiLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(wifiLbl, wifiConnected ? UI_COLOR_SUCCESS : UI_COLOR_WARNING, 0);
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Dial: Select   A: Run Test   B: Back");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// TEST RESULT SCREEN
+// ===================================================================================
+
+void UIManager::showTestResult(const char* testName, bool passed, const char* details) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Test Result", true);
+    
+    // Result card
+    lv_obj_t* card = createCard(scr, 20, 60, SCREEN_WIDTH - 40, 140);
+    lv_obj_set_style_bg_color(card, passed ? lv_color_hex(0x1A3A1A) : lv_color_hex(0x3A1A1A), 0);
+    lv_obj_set_style_border_color(card, passed ? UI_COLOR_SUCCESS : UI_COLOR_WARNING, 0);
+    lv_obj_set_style_border_width(card, 2, 0);
+    
+    // Test name
+    lv_obj_t* nameLabel = lv_label_create(card);
+    lv_label_set_text(nameLabel, testName);
+    lv_obj_set_style_text_font(nameLabel, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(nameLabel, UI_COLOR_TEXT_PRIMARY, 0);
+    lv_obj_align(nameLabel, LV_ALIGN_TOP_MID, 0, 10);
+    
+    // Pass/Fail icon and text
+    lv_obj_t* statusLabel = lv_label_create(card);
+    if (passed) {
+        lv_label_set_text(statusLabel, LV_SYMBOL_OK "  PASSED");
+        lv_obj_set_style_text_color(statusLabel, UI_COLOR_SUCCESS, 0);
+    } else {
+        lv_label_set_text(statusLabel, LV_SYMBOL_CLOSE "  FAILED");
+        lv_obj_set_style_text_color(statusLabel, UI_COLOR_WARNING, 0);
+    }
+    lv_obj_set_style_text_font(statusLabel, &lv_font_montserrat_24, 0);
+    lv_obj_align(statusLabel, LV_ALIGN_CENTER, 0, -5);
+    
+    // Details text
+    lv_obj_t* detailsLabel = lv_label_create(card);
+    lv_label_set_text(detailsLabel, details);
+    lv_obj_set_style_text_font(detailsLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(detailsLabel, UI_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_set_style_text_align(detailsLabel, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(detailsLabel, SCREEN_WIDTH - 80);
+    lv_obj_align(detailsLabel, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Press any button to continue");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// TRANSCRIPT MODE SCREENS
+// ===================================================================================
+
+void UIManager::showTranscriptList(const char** titles, const char** dates, int count, int selectedIndex) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Transcripts", true);
+    
+    // Scrollable list container
+    lv_obj_t* list = lv_obj_create(scr);
+    lv_obj_set_size(list, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 85);
+    lv_obj_set_pos(list, 10, 55);
+    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list, 8, 0);
+    lv_obj_set_style_pad_all(list, 5, 0);
+    
+    for (int i = 0; i < count; i++) {
+        lv_obj_t* item = lv_obj_create(list);
+        lv_obj_set_size(item, SCREEN_WIDTH - 45, 52);
+        
+        if (i == selectedIndex) {
+            lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
+        } else {
+            lv_obj_add_style(item, &UITheme::style_list_item, 0);
+        }
+        lv_obj_remove_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Microphone icon
+        lv_obj_t* icon = lv_label_create(item);
+        lv_label_set_text(icon, LV_SYMBOL_AUDIO);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 8, 0);
+        
+        // Title
+        lv_obj_t* titleLbl = lv_label_create(item);
+        lv_label_set_text(titleLbl, titles[i]);
+        lv_obj_set_style_text_font(titleLbl, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_color(titleLbl, UI_COLOR_TEXT_PRIMARY, 0);
+        lv_obj_set_width(titleLbl, SCREEN_WIDTH - 120);
+        lv_label_set_long_mode(titleLbl, LV_LABEL_LONG_DOT);
+        lv_obj_align(titleLbl, LV_ALIGN_LEFT_MID, 40, -8);
+        
+        // Date
+        lv_obj_t* dateLbl = lv_label_create(item);
+        lv_label_set_text(dateLbl, dates[i]);
+        lv_obj_set_style_text_font(dateLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(dateLbl, UI_COLOR_TEXT_MUTED, 0);
+        lv_obj_align(dateLbl, LV_ALIGN_LEFT_MID, 40, 10);
+        
+        // Arrow
+        lv_obj_t* arrow = lv_label_create(item);
+        lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+        lv_obj_set_style_text_color(arrow, UI_COLOR_TEXT_MUTED, 0);
+        lv_obj_align(arrow, LV_ALIGN_RIGHT_MID, -10, 0);
+    }
+    
+    // Scroll to selected item
+    if (selectedIndex > 0) {
+        lv_obj_scroll_to_y(list, selectedIndex * 60 - 30, LV_ANIM_OFF);
+    }
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Dial: Select   A: Open   B: Back");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showTranscriptOptions(const char* title, int selectedIndex) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, title, true);
+    
+    // Options list
+    lv_obj_t* list = lv_obj_create(scr);
+    lv_obj_set_size(list, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 85);
+    lv_obj_set_pos(list, 10, 55);
+    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list, 10, 0);
+    lv_obj_set_style_pad_all(list, 8, 0);
+    
+    // Menu options
+    const char* labels[] = {"Generate Quiz", "Generate Flashcards", "View Transcript", "Back to List"};
+    const char* icons[] = {LV_SYMBOL_LIST, LV_SYMBOL_FILE, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LEFT};
+    const char* descriptions[] = {"Create quiz questions", "Create study cards", "Read full content", "Return to list"};
+    int itemCount = 4;
+    
+    for (int i = 0; i < itemCount; i++) {
+        lv_obj_t* item = lv_obj_create(list);
+        lv_obj_set_size(item, SCREEN_WIDTH - 45, 48);
+        
+        if (i == selectedIndex) {
+            lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
+        } else {
+            lv_obj_add_style(item, &UITheme::style_list_item, 0);
+        }
+        lv_obj_remove_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Icon
+        lv_obj_t* icon = lv_label_create(item);
+        lv_label_set_text(icon, icons[i]);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 10, 0);
+        
+        // Label
+        lv_obj_t* label = lv_label_create(item);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 45, -6);
+        
+        // Description
+        lv_obj_t* desc = lv_label_create(item);
+        lv_label_set_text(desc, descriptions[i]);
+        lv_obj_set_style_text_font(desc, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(desc, UI_COLOR_TEXT_MUTED, 0);
+        lv_obj_align(desc, LV_ALIGN_LEFT_MID, 45, 10);
+        
+        // Arrow for Generate options
+        if (i < 2) {
+            lv_obj_t* arrow = lv_label_create(item);
+            lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+            lv_obj_set_style_text_color(arrow, UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(arrow, LV_ALIGN_RIGHT_MID, -10, 0);
+        }
+    }
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Dial: Select   A: Confirm   B: Back");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showTranscriptContent(const char* title, const char* content) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, title, true);
+    
+    // Scrollable content area
+    lv_obj_t* contentArea = lv_obj_create(scr);
+    lv_obj_set_size(contentArea, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 85);
+    lv_obj_set_pos(contentArea, 10, 55);
+    lv_obj_add_style(contentArea, &UITheme::style_card, 0);
+    lv_obj_set_style_pad_all(contentArea, 12, 0);
+    
+    // Content text
+    lv_obj_t* textLabel = lv_label_create(contentArea);
+    lv_label_set_text(textLabel, content);
+    lv_obj_set_style_text_font(textLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(textLabel, UI_COLOR_TEXT_PRIMARY, 0);
+    lv_obj_set_width(textLabel, SCREEN_WIDTH - 55);
+    lv_label_set_long_mode(textLabel, LV_LABEL_LONG_WRAP);
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Scroll to read   B: Back");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showSuccess(const char* title, const char* message) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, title, false);
+    
+    // Success card
+    lv_obj_t* card = createCard(scr, 20, 60, SCREEN_WIDTH - 40, 140);
+    lv_obj_set_style_bg_color(card, lv_color_hex(0x1A3A1A), 0);
+    lv_obj_set_style_border_color(card, UI_COLOR_SUCCESS, 0);
+    lv_obj_set_style_border_width(card, 2, 0);
+    
+    // Success icon
+    lv_obj_t* icon = lv_label_create(card);
+    lv_label_set_text(icon, LV_SYMBOL_OK);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(icon, UI_COLOR_SUCCESS, 0);
+    lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 15);
+    
+    // Message
+    lv_obj_t* msgLabel = lv_label_create(card);
+    lv_label_set_text(msgLabel, message);
+    lv_obj_set_style_text_font(msgLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(msgLabel, UI_COLOR_TEXT_PRIMARY, 0);
+    lv_obj_set_style_text_align(msgLabel, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(msgLabel, SCREEN_WIDTH - 80);
+    lv_obj_align(msgLabel, LV_ALIGN_CENTER, 0, 15);
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Press any button to continue");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -15);
     
     loadScreen(scr);
 }

@@ -2,6 +2,7 @@
 #define SE_NETWORK_MANAGER_H
 
 #include "config.h"
+#include "SettingsManager.h"
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
@@ -59,7 +60,7 @@ public:
     std::vector<Quiz> fetchQuizList();
     Quiz fetchQuiz(String quizId);
 
-    String getApiBaseUrl() { return API_BASE_URL; }
+    String getApiBaseUrl() { return settingsMgr.getApiBaseUrl(); }
 };
 
 #endif

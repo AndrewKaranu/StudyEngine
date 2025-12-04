@@ -1,4 +1,15 @@
 #include "QuizEngine.h"
+#include <Wire.h>
+
+// External feedback functions from main sketch
+extern void beepClick();
+extern void beepSuccess();
+extern void beepError();
+extern void beepWarning();
+extern void beepComplete();
+extern void setLed(bool red, bool green);
+extern void ledOff();
+extern void flashLed(bool red, bool green, int count, int onTime, int offTime);
 
 void QuizEngine::reset() {
     state = QUIZ_INIT;
@@ -91,8 +102,31 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
 
         case QUIZ_RUN:
             {
+                // Read all buttons FIRST via direct I2C
+                uint16_t pcfRaw = 0xFFFF;
+                Wire.requestFrom(0x20, 2);
+                if (Wire.available() == 2) {
+                    pcfRaw = Wire.read();
+                    pcfRaw |= (Wire.read() << 8);
+                }
+                bool btnAPressed = !((pcfRaw >> 0) & 1);
+                bool btnBPressed = !((pcfRaw >> 1) & 1);
+                bool btnCPressed = !((pcfRaw >> 2) & 1);
+                bool btnDPressed = !((pcfRaw >> 3) & 1);
+                
+                // Read keyboard
+                char key = 0;
+                Wire.requestFrom(0x5F, 1);
+                if (Wire.available()) {
+                    char c = Wire.read();
+                    if (c != 0) key = c;
+                }
+                
                 QuizQuestion& q = currentQuiz.questions[currentQuestionIndex];
-                char key = input.readCardKB(); // Read once
+                
+                // Debounce timing
+                static unsigned long lastBtnTime = 0;
+                const unsigned long DEBOUNCE = 200;
 
                 if (q.type == "mcq") {
                     // Handle MCQ
@@ -116,34 +150,38 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
                         needsFullRedraw = false;
                     }
                     
-                    // Input
-                    int newSelection = -1;
-                    if (input.isBtnAPressed()) newSelection = 0;
-                    else if (input.isBtnBPressed()) newSelection = 1;
-                    else if (input.isBtnCPressed()) newSelection = 2;
-                    // D is handled separately for Long Press support
-                    
-                    if (newSelection != -1 && newSelection < (int)q.options.size()) {
-                        if (newSelection == selectedOption) {
-                            // Confirm selection if pressed again
-                            userAnswers[currentQuestionIndex] = String(selectedOption);
-                            currentQuestionIndex++;
-                            selectedOption = -1;
-                            currentTextInput = "";
-                            if (currentQuestionIndex >= (int)currentQuiz.questions.size()) {
-                                state = QUIZ_RESULTS;
+                    // Input with debounce
+                    if (millis() - lastBtnTime >= DEBOUNCE) {
+                        int newSelection = -1;
+                        if (btnAPressed) newSelection = 0;
+                        else if (btnBPressed) newSelection = 1;
+                        else if (btnCPressed) newSelection = 2;
+                        else if (btnDPressed) newSelection = 3;
+                        
+                        if (newSelection != -1 && newSelection < (int)q.options.size()) {
+                            lastBtnTime = millis();
+                            if (newSelection == selectedOption) {
+                                // Confirm selection if pressed again
+                                beepClick(); // Confirmation click
+                                userAnswers[currentQuestionIndex] = String(selectedOption);
+                                currentQuestionIndex++;
+                                selectedOption = -1;
+                                currentTextInput = "";
+                                if (currentQuestionIndex >= (int)currentQuiz.questions.size()) {
+                                    state = QUIZ_RESULTS;
+                                }
+                                needsFullRedraw = true;
+                            } else {
+                                beepClick(); // Selection click
+                                selectedOption = newSelection;
+                                needsFullRedraw = true;
                             }
-                            needsFullRedraw = true;
-                            delay(200);
-                        } else {
-                            selectedOption = newSelection;
-                            needsFullRedraw = true;
-                            delay(200);
                         }
                     }
                     
                     if (key == 13) { // Enter
                         if (selectedOption != -1) {
+                            beepClick(); // Confirm click
                             userAnswers[currentQuestionIndex] = String(selectedOption);
                             currentQuestionIndex++;
                             selectedOption = -1;
@@ -177,6 +215,7 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
                     
                     if (key == 13) { // Enter
                         if (currentTextInput.length() > 0) {
+                            beepClick(); // Confirm answer
                             userAnswers[currentQuestionIndex] = currentTextInput;
                             currentQuestionIndex++;
                             currentTextInput = "";
@@ -197,99 +236,108 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
                     }
                 }
                 
-                // Long press detection for D button (pause menu)
-                // Note: In MCQ mode, D is used for option 4. 
-                // We need to be careful not to trigger option 4 if it's a long press.
-                // However, the user specifically asked for "D long press to open the menu".
-                // If D is pressed, we start timing. If released quickly -> Option 4. If held -> Menu.
-                
-                bool btnDPressed = input.isBtnDPressed();
-                if (btnDPressed && !btnDWasPressed) {
-                    btnDPressStart = millis();
-                    btnDWasPressed = true;
-                } else if (btnDPressed && btnDWasPressed) {
-                    if (millis() - btnDPressStart >= LONG_PRESS_MS) {
-                        state = QUIZ_PAUSED;
-                        pauseMenuIndex = 0;
-                        lastPauseMenuIndex = -1;
-                        needsFullRedraw = true;
-                        btnDWasPressed = false;
-                        delay(200);
-                        return;
-                    }
-                } else if (!btnDPressed && btnDWasPressed) {
-                    // Short press D
-                    if (millis() - btnDPressStart < LONG_PRESS_MS) {
-                        // Only trigger Option 4 if we are in MCQ mode
-                        if (q.type == "mcq") {
-                             int selection = 3;
-                             if (selection < (int)q.options.size()) {
-                                 if (selection == selectedOption) {
-                                     // Confirm
-                                     userAnswers[currentQuestionIndex] = String(selectedOption);
-                                     currentQuestionIndex++;
-                                     selectedOption = -1;
-                                     currentTextInput = "";
-                                     if (currentQuestionIndex >= (int)currentQuiz.questions.size()) {
-                                         state = QUIZ_RESULTS;
-                                     }
-                                     needsFullRedraw = true;
-                                     delay(200);
-                                 } else {
-                                     selectedOption = selection;
-                                     needsFullRedraw = true;
-                                     delay(200);
-                                 }
-                             }
-                        }
-                    }
-                    btnDWasPressed = false;
-                }
-                
-                // Global Back / ESC
-                if (key == 27) { // ESC
-                    state = QUIZ_PAUSED; // Go to pause menu instead of direct exit
+                // ESC key opens pause menu
+                if (key == 27) {
+                    state = QUIZ_PAUSED;
                     pauseMenuIndex = 0;
                     lastPauseMenuIndex = -1;
                     needsFullRedraw = true;
+                    return;
                 }
             }
             break;
 
         case QUIZ_PAUSED:
             {
+                // Read all buttons FIRST via direct I2C
+                uint16_t pcfRaw = 0xFFFF;
+                Wire.requestFrom(0x20, 2);
+                if (Wire.available() == 2) {
+                    pcfRaw = Wire.read();
+                    pcfRaw |= (Wire.read() << 8);
+                }
+                bool btnAPressed = !((pcfRaw >> 0) & 1);
+                bool btnBPressed = !((pcfRaw >> 1) & 1);
+                bool btnCPressed = !((pcfRaw >> 2) & 1);
+                bool btnDPressed = !((pcfRaw >> 3) & 1);
+                
+                // Read keyboard
+                char kbChar = 0;
+                Wire.requestFrom(0x5F, 1);
+                if (Wire.available()) {
+                    char c = Wire.read();
+                    if (c != 0) kbChar = c;
+                }
+                
                 // Keep LVGL responsive
                 lv_timer_handler();
-                display.showStatus("PAUSED");
+                
+                // Update OLED less frequently
+                static unsigned long lastOledUpdate = 0;
+                if (millis() - lastOledUpdate > 500) {
+                    display.showStatus("PAUSED");
+                    lastOledUpdate = millis();
+                }
                 
                 if (needsFullRedraw || pauseMenuIndex != lastPauseMenuIndex) {
-                    uiMgr.showFlashcardPauseMenu(pauseMenuIndex); // Reuse Flashcard Pause Menu
+                    uiMgr.showFlashcardPauseMenu(pauseMenuIndex);
                     lastPauseMenuIndex = pauseMenuIndex;
                     needsFullRedraw = false;
                 }
                 
-                // Navigation
-                if (input.isBtnCPressed()) {
-                    if (pauseMenuIndex > 0) pauseMenuIndex--;
-                    delay(150);
-                }
-                if (input.isBtnDPressed()) {
-                    if (pauseMenuIndex < 1) pauseMenuIndex++;
-                    delay(150);
+                // Debounce timing
+                static unsigned long lastNavTime = 0;
+                static unsigned long lastSelectTime = 0;
+                const unsigned long NAV_DEBOUNCE = 250;
+                const unsigned long SELECT_DEBOUNCE = 300;
+                
+                // Navigation with C/D buttons or arrows
+                if (millis() - lastNavTime >= NAV_DEBOUNCE) {
+                    if (kbChar == 181 || btnCPressed) { // Up
+                        if (pauseMenuIndex > 0) {
+                            pauseMenuIndex--;
+                            needsFullRedraw = true;
+                            lastNavTime = millis();
+                        }
+                    }
+                    if (kbChar == 182 || btnDPressed) { // Down
+                        if (pauseMenuIndex < 1) {
+                            pauseMenuIndex++;
+                            needsFullRedraw = true;
+                            lastNavTime = millis();
+                        }
+                    }
                 }
                 
-                // Select
-                if (input.isBtnAPressed()) {
-                    if (pauseMenuIndex == 0) {
-                        // Resume
+                // Potentiometer navigation
+                int potIndex = input.getScrollIndex(2);
+                if (potIndex != pauseMenuIndex) {
+                    pauseMenuIndex = potIndex;
+                    needsFullRedraw = true;
+                }
+                
+                // Select with A or Enter
+                if (millis() - lastSelectTime >= SELECT_DEBOUNCE) {
+                    if (btnAPressed || kbChar == 13) {
+                        lastSelectTime = millis();
+                        if (pauseMenuIndex == 0) {
+                            // Resume
+                            state = QUIZ_RUN;
+                            needsFullRedraw = true;
+                        } else {
+                            // Exit
+                            state = QUIZ_SELECT;
+                            needsFullRedraw = true;
+                        }
+                        return;
+                    }
+                    
+                    // B or ESC to resume
+                    if (btnBPressed || kbChar == 27) {
+                        lastSelectTime = millis();
                         state = QUIZ_RUN;
                         needsFullRedraw = true;
-                        delay(200);
-                    } else {
-                        // Exit
-                        state = QUIZ_SELECT;
-                        needsFullRedraw = true;
-                        delay(200);
+                        return;
                     }
                 }
             }
@@ -297,6 +345,17 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
 
         case QUIZ_RESULTS:
             {
+                // Read all buttons FIRST via direct I2C
+                uint16_t pcfRaw = 0xFFFF;
+                Wire.requestFrom(0x20, 2);
+                if (Wire.available() == 2) {
+                    pcfRaw = Wire.read();
+                    pcfRaw |= (Wire.read() << 8);
+                }
+                bool btnAPressed = !((pcfRaw >> 0) & 1);
+                bool btnBPressed = !((pcfRaw >> 1) & 1);
+                
+                static bool resultsFeedbackDone = false;
                 if (needsFullRedraw) {
                     int score = 0;
                     for (size_t i = 0; i < currentQuiz.questions.size(); i++) {
@@ -312,28 +371,60 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
                     }
                     
                     float pct = (float)score / currentQuiz.questions.size() * 100.0f;
+                    
+                    // Play result feedback once
+                    if (!resultsFeedbackDone) {
+                        if (pct >= 70.0f) {
+                            beepComplete();
+                            flashLed(false, true, 3, 150, 100); // Green flash for passing
+                        } else {
+                            beepError();
+                            flashLed(true, false, 2, 200, 150); // Red flash for failing
+                        }
+                        resultsFeedbackDone = true;
+                    }
+                    
                     uiMgr.showResult(score, currentQuiz.questions.size(), pct);
                     display.showStatus("Quiz Complete");
                     needsFullRedraw = false;
                 }
                 
-                if (input.isBtnAPressed()) {
-                    // Review Mode
-                    state = QUIZ_REVIEW;
-                    reviewQuestionIndex = 0;
-                    needsFullRedraw = true;
-                    delay(200);
-                } else if (input.isBtnBPressed()) {
-                    // Exit
-                    state = QUIZ_SELECT;
-                    needsFullRedraw = true;
-                    delay(200);
+                // Debounce
+                static unsigned long lastBtnTime = 0;
+                const unsigned long DEBOUNCE = 250;
+                
+                if (millis() - lastBtnTime >= DEBOUNCE) {
+                    if (btnAPressed) {
+                        // Review Mode
+                        resultsFeedbackDone = false; // Reset for next quiz
+                        state = QUIZ_REVIEW;
+                        reviewQuestionIndex = 0;
+                        needsFullRedraw = true;
+                        lastBtnTime = millis();
+                    } else if (btnBPressed) {
+                        // Exit
+                        resultsFeedbackDone = false; // Reset for next quiz
+                        state = QUIZ_SELECT;
+                        needsFullRedraw = true;
+                        lastBtnTime = millis();
+                    }
                 }
             }
             break;
 
         case QUIZ_REVIEW:
             {
+                // Read all buttons FIRST via direct I2C
+                uint16_t pcfRaw = 0xFFFF;
+                Wire.requestFrom(0x20, 2);
+                if (Wire.available() == 2) {
+                    pcfRaw = Wire.read();
+                    pcfRaw |= (Wire.read() << 8);
+                }
+                bool btnBPressed = !((pcfRaw >> 1) & 1);
+                bool btnCPressed = !((pcfRaw >> 2) & 1);
+                bool btnDPressed = !((pcfRaw >> 3) & 1);
+                
                 if (needsFullRedraw) {
                     QuizQuestion& q = currentQuiz.questions[reviewQuestionIndex];
                     String userAns = userAnswers[reviewQuestionIndex];
@@ -373,27 +464,33 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
                     needsFullRedraw = false;
                 }
                 
-                // Navigation
-                if (input.isBtnCPressed()) { // Prev
-                    if (reviewQuestionIndex > 0) {
-                        reviewQuestionIndex--;
-                        needsFullRedraw = true;
-                        delay(200);
-                    }
-                }
-                if (input.isBtnDPressed()) { // Next
-                    if (reviewQuestionIndex < (int)currentQuiz.questions.size() - 1) {
-                        reviewQuestionIndex++;
-                        needsFullRedraw = true;
-                        delay(200);
-                    }
-                }
+                // Debounce
+                static unsigned long lastBtnTime = 0;
+                const unsigned long DEBOUNCE = 200;
                 
-                // Exit Review
-                if (input.isBtnBPressed()) {
-                    state = QUIZ_RESULTS;
-                    needsFullRedraw = true;
-                    delay(200);
+                if (millis() - lastBtnTime >= DEBOUNCE) {
+                    // Navigation
+                    if (btnCPressed) { // Prev
+                        if (reviewQuestionIndex > 0) {
+                            reviewQuestionIndex--;
+                            needsFullRedraw = true;
+                            lastBtnTime = millis();
+                        }
+                    }
+                    if (btnDPressed) { // Next
+                        if (reviewQuestionIndex < (int)currentQuiz.questions.size() - 1) {
+                            reviewQuestionIndex++;
+                            needsFullRedraw = true;
+                            lastBtnTime = millis();
+                        }
+                    }
+                    
+                    // Exit Review
+                    if (btnBPressed) {
+                        state = QUIZ_RESULTS;
+                        needsFullRedraw = true;
+                        lastBtnTime = millis();
+                    }
                 }
             }
             break;

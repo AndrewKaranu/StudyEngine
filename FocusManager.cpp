@@ -4,6 +4,12 @@
  */
 
 #include "FocusManager.h"
+#include "SettingsManager.h"
+
+// External LED functions from main sketch
+extern void setLed(bool red, bool green);
+extern void ledOff();
+extern void flashLed(bool red, bool green, int count, int onTime, int offTime);
 
 // Global instance
 FocusManager focusMgr;
@@ -82,13 +88,19 @@ bool FocusManager::checkFocus() {
         warningShownTime = now;
         showingWarning = true;
         
-        // Play alert sound
-        ledcAttach(PIN_SPKR, 1000, 8);
-        ledcWriteTone(PIN_SPKR, 800);
-        delay(100);
-        ledcWriteTone(PIN_SPKR, 1000);
-        delay(100);
-        ledcWriteTone(PIN_SPKR, 0);
+        // Flash red LED and play alert sound (if not muted)
+        flashLed(true, false, 3, 100, 80);
+        if (!settingsMgr.getSpeakerMuted()) {
+            ledcAttach(PIN_SPKR, 1000, 8);
+            ledcWriteTone(PIN_SPKR, 800);
+            delay(100);
+            ledcWriteTone(PIN_SPKR, 1000);
+            delay(100);
+            ledcWriteTone(PIN_SPKR, 0);
+            ledcDetach(PIN_SPKR);      // Detach PWM from pin
+            pinMode(PIN_SPKR, OUTPUT); // Set as regular output
+            digitalWrite(PIN_SPKR, LOW); // Drive low to prevent noise
+        }
     }
     
     return false;
