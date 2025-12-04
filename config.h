@@ -20,6 +20,11 @@
 #define I2C_SDA      21
 #define I2C_SCL      22
 
+// --- NEW OLED CONFIG (Secondary I2C Bus) ---
+#define OLED_SDA     4   // Hardwired on TTGO LoRa V1
+#define OLED_SCL     15  // Hardwired on TTGO LoRa V1
+#define OLED_RESET   16  // Hardwired on TTGO LoRa V1
+
 // --- SPI DEVICES (Shared VSPI Bus) ---
 #define SPI_SCK      5
 #define SPI_MISO     19
@@ -27,10 +32,10 @@
 
 #define TFT_CS       13
 #define TFT_DC       2
-#define TFT_RST      4 
+#define TFT_RST      17  // CHANGED: Trying Pin 17 (GPIO17)
 
-#define RFID_CS      15
-#define RFID_RST     33
+// #define RFID_CS      14  // REMOVED
+// #define RFID_RST     33  // REMOVED
 
 // --- ANALOG & AUDIO ---
 #define PIN_IR       34 // Analog Input
@@ -39,8 +44,8 @@
 #define PIN_SPKR     25 // DAC Output
 
 // --- LORA (Disable) ---
-#define LORA_CS      18
-#define LORA_RST     14
+// #define LORA_CS      18
+// #define LORA_RST     14
 
 // --- PCF8575 PIN MAPPING (0-15) ---
 #define PCF_BTN_A    0

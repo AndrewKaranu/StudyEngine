@@ -15,6 +15,18 @@
 // Forward declare
 class InputManager;
 
+// Timer enums for UI (match StudyManager.h)
+enum TimerModeUI {
+    UI_TIMER_BASIC = 0,
+    UI_TIMER_POMODORO = 1
+};
+
+enum PomodoroPhaseUI {
+    UI_POMO_WORK = 0,
+    UI_POMO_SHORT_BREAK = 1,
+    UI_POMO_LONG_BREAK = 2
+};
+
 class UIManager {
 public:
     // Initialize LVGL and display driver
@@ -48,9 +60,24 @@ public:
     void showQuizQuestionText(int qNum, int total, const char* question, const char* currentInput, bool showCursor);
     void showQuizReview(int qNum, int total, const char* question, const char* userAnswer, const char* correctAnswer, bool isCorrect);
 
-    // Study Timer
+    // Study Timer (Legacy - can remove later)
     void showStudyTimer(unsigned long elapsedSeconds, bool isPaused, bool phoneDetected, bool userAway);
     void showStudyStart();
+    
+    // NEW: Enhanced Study Timer
+    void showTimerSetup(int timerMode, int selectedIndex,
+                        int basicDuration, bool countUp,
+                        int pomoWork, int pomoShortBreak, int pomoLongBreak, int pomoSessions,
+                        bool editing, int editValue);
+    void showBasicTimer(unsigned long elapsedSecs, unsigned long remainingSecs, bool isPaused, bool isBreak);
+    void showPomodoroTimer(unsigned long remainingSecs, int phase, int currentSession, int totalSessions, bool isPaused, bool isBreak);
+    void showTimerComplete(int sessionsCompleted, unsigned long totalSeconds);
+    
+    // NEW: Focus Mode Warning
+    void showFocusWarning(const char* message, bool phoneIssue, bool presenceIssue);
+    
+    // NEW: Global Settings Menu
+    void showSettingsMenu(int selectedIndex, bool focusModeEnabled);
     
     // Update specific elements without full redraw
     void updateAnswerState(int optionIndex, int pendingAnswer, int confirmedAnswer);

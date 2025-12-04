@@ -1,10 +1,23 @@
 #include "DisplayManager.h"
 
 void DisplayManager::begin() {
-    // Init OLED only - TFT is handled by UIManager
+    // 1. PERFORM THE HARDWARE/SOFTWARE RESET VIA GPIO 16 (CRITICAL FOR V1.0)
+    pinMode(OLED_RESET, OUTPUT);
+    digitalWrite(OLED_RESET, LOW); // Set the reset pin low
+    delay(50); // Wait a moment
+    digitalWrite(OLED_RESET, HIGH); // Then bring it high to release reset
+
+    // 2. Initialize Primary I2C for PCF and CardKB (Pins 21, 22)
+    Wire.begin(I2C_SDA, I2C_SCL);
+
+    // 3. Initialize Secondary I2C for OLED (Pins 4, 15)
+    Wire1.begin(OLED_SDA, OLED_SCL);
+
+    // Init OLED using Wire1
     if(!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
         Serial.println("[OLED] Init Failed!");
     } else {
+        oled.setRotation(2); // Flip 180 degrees
         oled.clearDisplay();
         oled.setTextColor(WHITE);
         oled.display();

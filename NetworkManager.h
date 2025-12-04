@@ -58,6 +58,8 @@ public:
     // Quiz API
     std::vector<Quiz> fetchQuizList();
     Quiz fetchQuiz(String quizId);
+
+    String getApiBaseUrl() { return API_BASE_URL; }
 };
 
 #endif

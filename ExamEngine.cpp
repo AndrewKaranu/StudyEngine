@@ -73,10 +73,7 @@ void ExamEngine::handleSetup(DisplayManager& display, InputManager& input, SENet
         case EXAM_SELECT:
             {
                 // Navigation with potentiometer
-                int pot = input.getPotValue();
-                int newIndex = map(pot, 0, 4095, 0, availableExams.size());
-                if (newIndex >= (int)availableExams.size()) newIndex = availableExams.size() - 1;
-                if (newIndex < 0) newIndex = 0;
+                int newIndex = input.getScrollIndex(availableExams.size());
                 
                 // Redraw if selection changed or first draw
                 if (newIndex != lastSelectedExamIndex || needsFullRedraw) {
@@ -528,9 +525,7 @@ void ExamEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
         // Only update if pot changed significantly
         if (lastPotValue < 0 || abs(pot - lastPotValue) > 100) {
             lastPotValue = pot;
-            int newIndex = map(pot, 0, 4095, 0, currentExam.questions.size());
-            if (newIndex >= (int)currentExam.questions.size()) newIndex = currentExam.questions.size() - 1;
-            if (newIndex < 0) newIndex = 0;
+            int newIndex = input.getScrollIndex(currentExam.questions.size());
             
             if (newIndex != overviewSelectedIndex) {
                 overviewSelectedIndex = newIndex;

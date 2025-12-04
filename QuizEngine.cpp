@@ -34,10 +34,7 @@ void QuizEngine::handleRun(DisplayManager& display, InputManager& input, SENetwo
 
         case QUIZ_SELECT:
             {
-                int pot = input.getPotValue();
-                int newIndex = map(pot, 0, 4095, 0, availableQuizzes.size());
-                if (newIndex >= (int)availableQuizzes.size()) newIndex = availableQuizzes.size() - 1;
-                if (newIndex < 0) newIndex = 0;
+                int newIndex = input.getScrollIndex(availableQuizzes.size());
                 
                 if (newIndex != selectedQuizIndex || needsFullRedraw) {
                     selectedQuizIndex = newIndex;

@@ -34,10 +34,7 @@ void FlashcardEngine::handleRun(DisplayManager& display, InputManager& input, SE
         case FC_SELECT_DECK:
             {
                 // Navigation
-                int pot = input.getPotValue();
-                int newIndex = map(pot, 0, 4095, 0, availableDecks.size());
-                if (newIndex >= (int)availableDecks.size()) newIndex = availableDecks.size() - 1;
-                if (newIndex < 0) newIndex = 0;
+                int newIndex = input.getScrollIndex(availableDecks.size());
                 
                 if (newIndex != selectedDeckIndex || needsFullRedraw) {
                     selectedDeckIndex = newIndex;

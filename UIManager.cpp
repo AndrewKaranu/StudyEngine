@@ -37,7 +37,7 @@ void UIManager::begin() {
     Serial.println("[UI] Initializing LVGL 9.x...");
     
     // Initialize TFT
-    tft.begin();
+    tft.init(); // Use init() instead of begin() for some drivers
     tft.setRotation(1);  // Landscape
     tft.fillScreen(TFT_BLACK);
     Serial.println("[UI] TFT initialized");
@@ -1213,6 +1213,504 @@ void UIManager::showQuizReview(int qNum, int total, const char* question, const 
     // Footer
     lv_obj_t* hint = lv_label_create(scr);
     lv_label_set_text(hint, "C/D: Prev/Next   B: Exit Review");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// ENHANCED STUDY TIMER SCREENS
+// ===================================================================================
+
+void UIManager::showTimerSetup(int timerMode, int selectedIndex,
+                                int basicDuration, bool countUp,
+                                int pomoWork, int pomoShortBreak, int pomoLongBreak, int pomoSessions,
+                                bool editing, int editValue) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Study Timer", true);
+    
+    // Timer mode indicator
+    lv_obj_t* modeCard = createCard(scr, 15, 55, SCREEN_WIDTH - 30, 45);
+    lv_obj_t* modeLbl = lv_label_create(modeCard);
+    lv_label_set_text(modeLbl, timerMode == UI_TIMER_BASIC ? "Basic Timer" : "Pomodoro Timer");
+    lv_obj_set_style_text_font(modeLbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(modeLbl, UI_COLOR_PRIMARY, 0);
+    lv_obj_center(modeLbl);
+    
+    // Settings list
+    lv_obj_t* list = lv_obj_create(scr);
+    lv_obj_set_size(list, SCREEN_WIDTH - 20, 175);
+    lv_obj_set_pos(list, 10, 105);
+    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_style_pad_all(list, 5, 0);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list, 8, 0);
+    
+    // Build menu items based on mode
+    const char* labels[6];
+    char values[6][20];
+    int itemCount;
+    
+    if (timerMode == UI_TIMER_BASIC) {
+        labels[0] = "Mode";
+        labels[1] = "Duration";
+        labels[2] = "Direction";
+        labels[3] = "Start Timer";
+        itemCount = 4;
+        
+        strcpy(values[0], "Basic");
+        sprintf(values[1], "%d min", editing && selectedIndex == 1 ? editValue : basicDuration);
+        strcpy(values[2], countUp ? "Count Up" : "Countdown");
+        strcpy(values[3], LV_SYMBOL_PLAY);
+    } else {
+        labels[0] = "Mode";
+        labels[1] = "Work Time";
+        labels[2] = "Short Break";
+        labels[3] = "Long Break";
+        labels[4] = "Sessions";
+        labels[5] = "Start Timer";
+        itemCount = 6;
+        
+        strcpy(values[0], "Pomodoro");
+        sprintf(values[1], "%d min", editing && selectedIndex == 1 ? editValue : pomoWork);
+        sprintf(values[2], "%d min", editing && selectedIndex == 2 ? editValue : pomoShortBreak);
+        sprintf(values[3], "%d min", editing && selectedIndex == 3 ? editValue : pomoLongBreak);
+        sprintf(values[4], "%d", editing && selectedIndex == 4 ? editValue : pomoSessions);
+        strcpy(values[5], LV_SYMBOL_PLAY);
+    }
+    
+    for (int i = 0; i < itemCount; i++) {
+        lv_obj_t* item = lv_obj_create(list);
+        lv_obj_set_size(item, SCREEN_WIDTH - 50, 38);
+        
+        bool isSelected = (i == selectedIndex);
+        bool isEditing = editing && isSelected;
+        
+        if (isEditing) {
+            lv_obj_set_style_bg_color(item, UI_COLOR_WARNING, 0);
+            lv_obj_set_style_border_width(item, 2, 0);
+            lv_obj_set_style_border_color(item, lv_color_white(), 0);
+        } else if (isSelected) {
+            lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
+        } else {
+            lv_obj_add_style(item, &UITheme::style_list_item, 0);
+        }
+        lv_obj_remove_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Label
+        lv_obj_t* label = lv_label_create(item);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 10, 0);
+        
+        // Value
+        lv_obj_t* value = lv_label_create(item);
+        lv_label_set_text(value, values[i]);
+        lv_obj_set_style_text_font(value, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_color(value, isSelected ? lv_color_white() : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_align(value, LV_ALIGN_RIGHT_MID, -10, 0);
+        
+        // Scroll selected item into view
+        if (isSelected) {
+            lv_obj_scroll_to_view(item, LV_ANIM_OFF);
+        }
+    }
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    if (editing) {
+        lv_label_set_text(hint, "C/D: Adjust   A: Confirm   B: Cancel");
+    } else {
+        lv_label_set_text(hint, "Dial: Select   A: Edit/Toggle   B: Back");
+    }
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showBasicTimer(unsigned long elapsedSecs, unsigned long remainingSecs, bool isPaused, bool isBreak) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Study Timer", false);
+    
+    // Main timer card
+    lv_obj_t* card = createCard(scr, 30, 60, SCREEN_WIDTH - 60, 200);
+    
+    // Calculate display time
+    unsigned long displaySecs = remainingSecs > 0 ? remainingSecs : elapsedSecs;
+    int hours = displaySecs / 3600;
+    int minutes = (displaySecs % 3600) / 60;
+    int seconds = displaySecs % 60;
+    
+    // Large time display
+    char timeStr[20];
+    if (hours > 0) {
+        sprintf(timeStr, "%d:%02d:%02d", hours, minutes, seconds);
+    } else {
+        sprintf(timeStr, "%02d:%02d", minutes, seconds);
+    }
+    
+    lv_obj_t* timeLbl = lv_label_create(card);
+    lv_label_set_text(timeLbl, timeStr);
+    lv_obj_set_style_text_font(timeLbl, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(timeLbl, isPaused ? UI_COLOR_WARNING : UI_COLOR_SUCCESS, 0);
+    lv_obj_align(timeLbl, LV_ALIGN_TOP_MID, 0, 25);
+    
+    // Progress arc (for countdown mode)
+    if (remainingSecs > 0) {
+        unsigned long totalSecs = elapsedSecs + remainingSecs;
+        int progress = (elapsedSecs * 100) / totalSecs;
+        
+        lv_obj_t* arc = lv_arc_create(card);
+        lv_obj_set_size(arc, 100, 100);
+        lv_obj_align(arc, LV_ALIGN_CENTER, 0, 20);
+        lv_arc_set_rotation(arc, 135);
+        lv_arc_set_bg_angles(arc, 0, 270);
+        lv_arc_set_range(arc, 0, 100);
+        lv_arc_set_value(arc, progress);
+        lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
+        lv_obj_set_style_arc_color(arc, UI_COLOR_BG_ELEVATED, LV_PART_MAIN);
+        lv_obj_set_style_arc_color(arc, isPaused ? UI_COLOR_WARNING : UI_COLOR_PRIMARY, LV_PART_INDICATOR);
+        lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    }
+    
+    // Status text
+    lv_obj_t* statusLbl = lv_label_create(card);
+    const char* statusText = isPaused ? "PAUSED" : (remainingSecs > 0 ? "FOCUS TIME" : "STUDYING");
+    lv_label_set_text(statusLbl, statusText);
+    lv_obj_set_style_text_font(statusLbl, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(statusLbl, isPaused ? UI_COLOR_WARNING : UI_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_align(statusLbl, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, isPaused ? "A: Resume   B: Stop" : "A: Pause   B: Stop");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showPomodoroTimer(unsigned long remainingSecs, int phase, int currentSession, int totalSessions, bool isPaused, bool isBreak) {
+    lv_obj_t* scr = createScreen();
+    
+    // Phase-based header color
+    const char* phaseTitle;
+    lv_color_t phaseColor;
+    
+    switch (phase) {
+        case UI_POMO_WORK:
+            phaseTitle = "Focus Time";
+            phaseColor = UI_COLOR_PRIMARY;
+            break;
+        case UI_POMO_SHORT_BREAK:
+            phaseTitle = "Short Break";
+            phaseColor = UI_COLOR_SUCCESS;
+            break;
+        case UI_POMO_LONG_BREAK:
+            phaseTitle = "Long Break";
+            phaseColor = UI_COLOR_SECONDARY;
+            break;
+        default:
+            phaseTitle = "Pomodoro";
+            phaseColor = UI_COLOR_PRIMARY;
+    }
+    
+    // Custom header with phase color
+    lv_obj_t* header = lv_obj_create(scr);
+    lv_obj_set_size(header, SCREEN_WIDTH, 50);
+    lv_obj_set_pos(header, 0, 0);
+    lv_obj_set_style_bg_color(header, phaseColor, 0);
+    lv_obj_set_style_radius(header, 0, 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_remove_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_t* titleLbl = lv_label_create(header);
+    lv_label_set_text(titleLbl, phaseTitle);
+    lv_obj_set_style_text_font(titleLbl, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_color(titleLbl, lv_color_white(), 0);
+    lv_obj_align(titleLbl, LV_ALIGN_LEFT_MID, 15, 0);
+    
+    // Session counter in header
+    char sessStr[20];
+    sprintf(sessStr, "%d/%d", currentSession, totalSessions);
+    lv_obj_t* sessLbl = lv_label_create(header);
+    lv_label_set_text(sessLbl, sessStr);
+    lv_obj_set_style_text_font(sessLbl, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(sessLbl, lv_color_white(), 0);
+    lv_obj_align(sessLbl, LV_ALIGN_RIGHT_MID, -15, 0);
+    
+    // Main timer card
+    lv_obj_t* card = createCard(scr, 30, 60, SCREEN_WIDTH - 60, 200);
+    
+    // Calculate time
+    int minutes = remainingSecs / 60;
+    int seconds = remainingSecs % 60;
+    
+    char timeStr[10];
+    sprintf(timeStr, "%02d:%02d", minutes, seconds);
+    
+    lv_obj_t* timeLbl = lv_label_create(card);
+    lv_label_set_text(timeLbl, timeStr);
+    lv_obj_set_style_text_font(timeLbl, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(timeLbl, isPaused ? UI_COLOR_WARNING : phaseColor, 0);
+    lv_obj_align(timeLbl, LV_ALIGN_TOP_MID, 0, 30);
+    
+    // Tomato icons for sessions completed
+    lv_obj_t* tomatoRow = lv_obj_create(card);
+    lv_obj_set_size(tomatoRow, SCREEN_WIDTH - 100, 40);
+    lv_obj_align(tomatoRow, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_bg_opa(tomatoRow, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(tomatoRow, 0, 0);
+    lv_obj_set_flex_flow(tomatoRow, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(tomatoRow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_remove_flag(tomatoRow, LV_OBJ_FLAG_SCROLLABLE);
+    
+    for (int i = 0; i < totalSessions && i < 8; i++) {
+        lv_obj_t* tomato = lv_label_create(tomatoRow);
+        lv_label_set_text(tomato, LV_SYMBOL_CHARGE); // Using charge as tomato substitute
+        lv_obj_set_style_text_font(tomato, &lv_font_montserrat_20, 0);
+        if (i < currentSession - 1 || (i == currentSession - 1 && phase != UI_POMO_WORK)) {
+            lv_obj_set_style_text_color(tomato, UI_COLOR_SUCCESS, 0); // Completed
+        } else if (i == currentSession - 1) {
+            lv_obj_set_style_text_color(tomato, phaseColor, 0); // Current
+        } else {
+            lv_obj_set_style_text_color(tomato, UI_COLOR_TEXT_MUTED, 0); // Not started
+        }
+    }
+    
+    // Status text
+    lv_obj_t* statusLbl = lv_label_create(card);
+    const char* statusText = isPaused ? "PAUSED" : (isBreak ? "Take a break!" : "Stay focused!");
+    lv_label_set_text(statusLbl, statusText);
+    lv_obj_set_style_text_font(statusLbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(statusLbl, isPaused ? UI_COLOR_WARNING : UI_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_align(statusLbl, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    if (isBreak) {
+        lv_label_set_text(hint, "A: Skip Break   B: Stop");
+    } else {
+        lv_label_set_text(hint, isPaused ? "A: Resume   B: Stop" : "A: Pause   B: Stop");
+    }
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    loadScreen(scr);
+}
+
+void UIManager::showTimerComplete(int sessionsCompleted, unsigned long totalSeconds) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Session Complete!", false);
+    
+    lv_obj_t* card = createCard(scr, 40, 70, SCREEN_WIDTH - 80, 180);
+    
+    // Trophy icon
+    lv_obj_t* icon = lv_label_create(card);
+    lv_label_set_text(icon, LV_SYMBOL_OK);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(icon, UI_COLOR_SUCCESS, 0);
+    lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 15);
+    
+    // Stats
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+    
+    char statsStr[100];
+    if (hours > 0) {
+        sprintf(statsStr, "Sessions: %d\nTotal Time: %dh %dm", sessionsCompleted, hours, minutes);
+    } else {
+        sprintf(statsStr, "Sessions: %d\nTotal Time: %d minutes", sessionsCompleted, minutes);
+    }
+    
+    lv_obj_t* statsLbl = lv_label_create(card);
+    lv_label_set_text(statsLbl, statsStr);
+    lv_obj_set_style_text_font(statsLbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_align(statsLbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(statsLbl, LV_ALIGN_CENTER, 0, 20);
+    
+    // Great job message
+    lv_obj_t* msgLbl = lv_label_create(card);
+    lv_label_set_text(msgLbl, "Great work!");
+    lv_obj_set_style_text_font(msgLbl, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(msgLbl, UI_COLOR_PRIMARY, 0);
+    lv_obj_align(msgLbl, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Press any button to continue");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// FOCUS MODE WARNING
+// ===================================================================================
+
+void UIManager::showFocusWarning(const char* message, bool phoneIssue, bool presenceIssue) {
+    lv_obj_t* scr = createScreen();
+    
+    // Dark overlay background
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x1A0A0A), 0);
+    
+    // Warning header
+    lv_obj_t* header = lv_obj_create(scr);
+    lv_obj_set_size(header, SCREEN_WIDTH, 55);
+    lv_obj_set_pos(header, 0, 0);
+    lv_obj_set_style_bg_color(header, UI_COLOR_ERROR, 0);
+    lv_obj_set_style_radius(header, 0, 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_remove_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_t* warnIcon = lv_label_create(header);
+    lv_label_set_text(warnIcon, LV_SYMBOL_WARNING);
+    lv_obj_set_style_text_font(warnIcon, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(warnIcon, lv_color_white(), 0);
+    lv_obj_align(warnIcon, LV_ALIGN_LEFT_MID, 15, 0);
+    
+    lv_obj_t* titleLbl = lv_label_create(header);
+    lv_label_set_text(titleLbl, "Focus Alert!");
+    lv_obj_set_style_text_font(titleLbl, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(titleLbl, lv_color_white(), 0);
+    lv_obj_align(titleLbl, LV_ALIGN_LEFT_MID, 55, 0);
+    
+    // Warning card
+    lv_obj_t* card = createCard(scr, 30, 75, SCREEN_WIDTH - 60, 180);
+    lv_obj_set_style_border_color(card, UI_COLOR_ERROR, 0);
+    lv_obj_set_style_border_width(card, 2, 0);
+    
+    // Issue icons
+    int iconY = 20;
+    
+    if (phoneIssue) {
+        lv_obj_t* phoneRow = lv_obj_create(card);
+        lv_obj_set_size(phoneRow, SCREEN_WIDTH - 100, 45);
+        lv_obj_set_pos(phoneRow, 10, iconY);
+        lv_obj_set_style_bg_color(phoneRow, lv_color_hex(0x2D1E1E), 0);
+        lv_obj_set_style_radius(phoneRow, 8, 0);
+        lv_obj_set_style_border_width(phoneRow, 0, 0);
+        lv_obj_remove_flag(phoneRow, LV_OBJ_FLAG_SCROLLABLE);
+        
+        lv_obj_t* phoneIcon = lv_label_create(phoneRow);
+        lv_label_set_text(phoneIcon, LV_SYMBOL_CALL);
+        lv_obj_set_style_text_font(phoneIcon, &lv_font_montserrat_22, 0);
+        lv_obj_set_style_text_color(phoneIcon, UI_COLOR_ERROR, 0);
+        lv_obj_align(phoneIcon, LV_ALIGN_LEFT_MID, 10, 0);
+        
+        lv_obj_t* phoneLbl = lv_label_create(phoneRow);
+        lv_label_set_text(phoneLbl, "Phone not docked!");
+        lv_obj_set_style_text_font(phoneLbl, &lv_font_montserrat_18, 0);
+        lv_obj_align(phoneLbl, LV_ALIGN_LEFT_MID, 45, 0);
+        
+        iconY += 55;
+    }
+    
+    if (presenceIssue) {
+        lv_obj_t* presRow = lv_obj_create(card);
+        lv_obj_set_size(presRow, SCREEN_WIDTH - 100, 45);
+        lv_obj_set_pos(presRow, 10, iconY);
+        lv_obj_set_style_bg_color(presRow, lv_color_hex(0x2D1E1E), 0);
+        lv_obj_set_style_radius(presRow, 8, 0);
+        lv_obj_set_style_border_width(presRow, 0, 0);
+        lv_obj_remove_flag(presRow, LV_OBJ_FLAG_SCROLLABLE);
+        
+        lv_obj_t* presIcon = lv_label_create(presRow);
+        lv_label_set_text(presIcon, LV_SYMBOL_EYE_CLOSE);
+        lv_obj_set_style_text_font(presIcon, &lv_font_montserrat_22, 0);
+        lv_obj_set_style_text_color(presIcon, UI_COLOR_WARNING, 0);
+        lv_obj_align(presIcon, LV_ALIGN_LEFT_MID, 10, 0);
+        
+        lv_obj_t* presLbl = lv_label_create(presRow);
+        lv_label_set_text(presLbl, "User not detected!");
+        lv_obj_set_style_text_font(presLbl, &lv_font_montserrat_18, 0);
+        lv_obj_align(presLbl, LV_ALIGN_LEFT_MID, 45, 0);
+    }
+    
+    // Instruction
+    lv_obj_t* instrLbl = lv_label_create(card);
+    lv_label_set_text(instrLbl, "Get back to focusing!");
+    lv_obj_set_style_text_font(instrLbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(instrLbl, UI_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_align(instrLbl, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    // Footer
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "A: Dismiss Warning");
+    lv_obj_add_style(hint, &UITheme::style_text_small, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -15);
+    
+    loadScreen(scr);
+}
+
+// ===================================================================================
+// GLOBAL SETTINGS MENU
+// ===================================================================================
+
+void UIManager::showSettingsMenu(int selectedIndex, bool focusModeEnabled) {
+    lv_obj_t* scr = createScreen();
+    
+    createHeader(scr, "Settings", true);
+    
+    // Settings list
+    lv_obj_t* list = lv_obj_create(scr);
+    lv_obj_set_size(list, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 80);
+    lv_obj_set_pos(list, 10, 55);
+    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list, 12, 0);
+    lv_obj_set_style_pad_all(list, 10, 0);
+    
+    // Menu items
+    const char* labels[] = {"Focus Mode", "Back to Menu"};
+    const char* icons[] = {LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LEFT};
+    int itemCount = 2;
+    
+    for (int i = 0; i < itemCount; i++) {
+        lv_obj_t* item = lv_obj_create(list);
+        lv_obj_set_size(item, SCREEN_WIDTH - 50, 65);
+        
+        if (i == selectedIndex) {
+            lv_obj_add_style(item, &UITheme::style_list_item_selected, 0);
+        } else {
+            lv_obj_add_style(item, &UITheme::style_list_item, 0);
+        }
+        lv_obj_remove_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Icon
+        lv_obj_t* icon = lv_label_create(item);
+        lv_label_set_text(icon, icons[i]);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_22, 0);
+        lv_obj_set_style_text_color(icon, i == selectedIndex ? UI_COLOR_PRIMARY : UI_COLOR_TEXT_SECONDARY, 0);
+        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 10, 0);
+        
+        // Label
+        lv_obj_t* label = lv_label_create(item);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 50, 0);
+        
+        // Toggle/Value for Focus Mode
+        if (i == 0) {
+            lv_obj_t* toggle = lv_label_create(item);
+            lv_label_set_text(toggle, focusModeEnabled ? "ON" : "OFF");
+            lv_obj_set_style_text_font(toggle, &lv_font_montserrat_18, 0);
+            lv_obj_set_style_text_color(toggle, focusModeEnabled ? UI_COLOR_SUCCESS : UI_COLOR_TEXT_MUTED, 0);
+            lv_obj_align(toggle, LV_ALIGN_RIGHT_MID, -15, 0);
+        }
+    }
+    
+    // Footer hint
+    lv_obj_t* hint = lv_label_create(scr);
+    lv_label_set_text(hint, "Dial: Navigate   A: Toggle/Select   B: Back");
     lv_obj_add_style(hint, &UITheme::style_text_small, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
     

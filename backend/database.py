@@ -79,4 +79,10 @@ def get_all_quizzes() -> List[Quiz]:
 def get_quiz(quiz_id: str) -> Quiz:
     return quizzes_db.get(quiz_id)
 
+def add_quiz(quiz: Quiz):
+    quizzes_db[quiz.id] = quiz
+
+def add_deck(deck: Deck):
+    decks_db[deck.id] = deck
+
 

@@ -1,0 +1,21 @@
+# Environment Variables
+.env
+backend/.env
+
+# Arduino/PlatformIO
+.pio/
+.vscode/
+*.elf
+*.bin
+*.hex
+*.map
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Python (Backend)
+__pycache__/
+*.py[cod]
+venv/
+.pytest_cache/

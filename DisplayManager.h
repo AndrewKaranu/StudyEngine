@@ -11,7 +11,8 @@
  */
 class DisplayManager {
 public:
-    Adafruit_SSD1306 oled = Adafruit_SSD1306(128, 64, &Wire, -1);
+    // Use Wire1 for the OLED on the secondary I2C bus
+    Adafruit_SSD1306 oled = Adafruit_SSD1306(128, 64, &Wire1, OLED_RESET);
 
     void begin();
     void showStatus(const char* msg);
