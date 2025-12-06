@@ -15,7 +15,7 @@ from models import (
     ModelChoice, Quiz, QuizQuestion, Deck, Flashcard, Exam, Question
 )
 
-# In-memory job storage (could be replaced with Redis/DB for production)
+# In-memory job storage im not getting into redis for this
 jobs: Dict[str, GenerationJob] = {}
 
 

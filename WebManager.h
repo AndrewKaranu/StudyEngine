@@ -2,7 +2,7 @@
 #define WEB_MANAGER_H
 
 #include <FS.h>
-// Fix for ESP32 Core 3.x where FS is in fs namespace but WebServer expects global
+// FS is in fs namespace but WebServer expects global lmao why did this take this long to figure out
 using fs::FS;
 #include <WebServer.h>
 #include "NetworkManager.h"

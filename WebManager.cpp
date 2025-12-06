@@ -1,6 +1,7 @@
 #include "WebManager.h"
 
 // HTML Content stored in Flash Memory
+// Disclaimer that I used AI for the HTML and inline CSS of the web ui
 const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>

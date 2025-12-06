@@ -5,7 +5,7 @@ void DisplayManager::begin() {
     pinMode(OLED_RESET, OUTPUT);
     digitalWrite(OLED_RESET, LOW); // Set the reset pin low
     delay(50); // Wait a moment
-    digitalWrite(OLED_RESET, HIGH); // Then bring it high to release reset
+    digitalWrite(OLED_RESET, HIGH); // Then bring high
 
     // 2. Initialize Primary I2C for PCF and CardKB (Pins 21, 22)
     Wire.begin(I2C_SDA, I2C_SCL);

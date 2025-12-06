@@ -32,7 +32,7 @@
 
 #define TFT_CS       13
 #define TFT_DC       2
-#define TFT_RST      17  // CHANGED: Trying Pin 17 (GPIO17)
+#define TFT_RST      17  
 
 // #define RFID_CS      14  // REMOVED
 // #define RFID_RST     33  // REMOVED
@@ -60,7 +60,7 @@
 #define WIFI_SSID "Andrew’s iPhone"
 #define WIFI_PASS "ReeceJames"
 
-// Default API URL (used if nothing is saved in preferences)
+// Default API URL 
 #define DEFAULT_API_URL "http://172.20.10.11:8000"
 #define MAX_URL_LENGTH 128
 

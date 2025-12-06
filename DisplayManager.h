@@ -7,7 +7,7 @@
 
 /**
  * DisplayManager - Handles OLED status display
- * TFT is now managed by UIManager with LVGL
+ * TFT is managed by UIManager with LVGL
  */
 class DisplayManager {
 public:

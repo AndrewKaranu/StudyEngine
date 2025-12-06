@@ -265,7 +265,7 @@ void TranscriptEngine::handleRun(DisplayManager& display, InputManager& input, S
 }
 
 // ===================================================================================
-// SAMPLE DATA (Replace with actual API calls later)
+// SAMPLE DATA
 // ===================================================================================
 
 std::vector<Transcript> TranscriptEngine::fetchTranscriptList() {

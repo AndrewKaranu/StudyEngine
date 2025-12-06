@@ -1,7 +1,7 @@
 from typing import List, Dict
 from models import Exam, StudentResult, Deck, Flashcard, Quiz, QuizQuestion
 
-# In-memory storage for simplicity
+# In-memory storage for simplicity and safety
 exams_db: Dict[str, Exam] = {}
 results_db: List[StudentResult] = []
 decks_db: Dict[str, Deck] = {}
