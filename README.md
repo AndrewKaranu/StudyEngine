@@ -19,9 +19,11 @@ A portable, offline-capable study device built on the ESP32 (TTGO LoRa V1) platf
 
 - **Board**: TTGO LoRa32 V1 (ESP32 with built-in OLED)
 - **Display**: 128x64 OLED (SSD1306) + External TFT via LVGL
-- **Input**: Potentiometer (scrolling) + 2 Buttons (A/B for selection)
+- **Input**: Potentiometer (scrolling) + 4 Buttons (A/B/C/D for selection) + M5 stack Card KB
+- **Sensors**: PIR Sensor + IR Sensor
 - **Feedback**: Passive buzzer (speaker) + RGB LED
-- **Connectivity**: WiFi for syncing with backend server
+- All the above enclosed in a 3d printed case.
+
 
 ---
 
